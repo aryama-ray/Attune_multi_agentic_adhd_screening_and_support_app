@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attune — Top 1% Strategy</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf9f6;
+    --ink: #18160f;
+    --ink2: #3a3626;
+    --muted: #888070;
+    --rule: #e2ddd4;
+    --cream: #f0ebe0;
+    --g: #1d6344;
+    --gl: #e3f2ea;
+    --r: #b83b10;
+    --rl: #fdeee8;
+    --a: #a05f10;
+    --al: #fef4e2;
+    --b: #1a40bf;
+    --bl: #eef3ff;
+    --v: #5c2fa0;
+    --vl: #f3eeff;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans',sans-serif; font-size:14px; line-height:1.7; }
+
+  /* ── MASTHEAD ── */
+  .mast {
+    background: var(--ink);
+    padding: 48px 60px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .mast::before {
+    content:'';
+    position:absolute; top:-80px; right:-80px;
+    width:320px; height:320px;
+    border-radius:50%;
+    background: radial-gradient(circle, rgba(29,99,68,.35), transparent 70%);
+    pointer-events:none;
+  }
+  .mast-kicker {
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+    color: rgba(255,255,255,.35); margin-bottom:16px;
+  }
+  .mast h1 {
+    font-family:'Playfair Display',serif;
+    font-weight:900; font-size:60px; line-height:.95;
+    letter-spacing:-2px; color:#fff; margin-bottom:20px;
+  }
+  .mast h1 em { font-style:italic; color:#6ee7b7; }
+  .mast-sub {
+    font-family:'IBM Plex Mono',monospace; font-size:13px;
+    color:rgba(255,255,255,.5); max-width:680px; line-height:1.6;
+  }
+  .mast-badges { display:flex; gap:10px; flex-wrap:wrap; margin-top:24px; }
+  .mbadge {
+    padding:5px 14px; border-radius:999px; font-family:'IBM Plex Mono',monospace;
+    font-size:10px; letter-spacing:.08em; border:1px solid;
+  }
+  .mbg { color:#6ee7b7; border-color:rgba(110,231,183,.35); background:rgba(110,231,183,.08); }
+  .mbb { color:#93c5fd; border-color:rgba(147,197,253,.35); background:rgba(147,197,253,.08); }
+  .mbr { color:#fca5a5; border-color:rgba(252,165,165,.35); background:rgba(252,165,165,.08); }
+  .mba { color:#fcd34d; border-color:rgba(252,211,77,.35);  background:rgba(252,211,77,.08); }
+
+  /* ── LAYOUT ── */
+  .page { max-width:1240px; margin:0 auto; padding:0 60px 80px; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:32px; }
+  .three { display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px; }
+  hr.rule { border:none; border-top:1.5px solid var(--rule); margin:52px 0 32px; }
+
+  .sec-label {
+    font-family:'IBM Plex Mono',monospace; font-size:10px;
+    letter-spacing:.2em; text-transform:uppercase; color:var(--muted);
+    margin-bottom:28px; display:flex; align-items:center; gap:12px;
+  }
+  .sec-label::after { content:''; flex:1; height:1px; background:var(--rule); }
+
+  h2 { font-family:'Playfair Display',serif; font-weight:700; font-size:30px; line-height:1.2; margin-bottom:14px; }
+  h3 { font-family:'Playfair Display',serif; font-weight:700; font-size:17px; margin-bottom:8px; }
+  p { color:var(--ink2); margin-bottom:12px; font-size:13.5px; }
+  p:last-child { margin-bottom:0; }
+
+  .pull {
+    border-left:4px solid var(--g); padding:14px 18px;
+    background:var(--gl); border-radius:0 8px 8px 0; margin:18px 0;
+  }
+  .pull p {
+    font-family:'Playfair Display',serif; font-style:italic;
+    font-size:16px; line-height:1.55; color:var(--g); margin:0;
+  }
+
+  /* ── COMPETITOR TABLE ── */
+  .ct { width:100%; border-collapse:collapse; font-size:12px; margin:24px 0; }
+  .ct th {
+    text-align:left; padding:9px 13px; font-family:'IBM Plex Mono',monospace;
+    font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted); border-bottom:2px solid var(--ink); background:var(--cream);
+  }
+  .ct td { padding:10px 13px; border-bottom:1px solid var(--rule); color:var(--ink2); vertical-align:top; line-height:1.5; }
+  .ct tr:last-child td { border-bottom:none; }
+  .ck { color:var(--g); font-weight:600; }
+  .cx { color:var(--r); }
+  .cp { color:var(--a); }
+  .at td { background:var(--gl); font-weight:500; color:var(--ink); }
+  .at td:first-child { font-family:'Playfair Display',serif; font-style:italic; font-weight:700; font-size:14px; color:var(--g); }
+
+  /* ── UPGRADE CARDS ── */
+  .upg-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:8px; }
+  .upg {
+    border:1.5px solid var(--rule); border-radius:12px; padding:24px;
+    background:#fff; position:relative; overflow:hidden;
+  }
+  .upg::before {
+    content: attr(data-num);
+    position:absolute; top:-10px; right:16px;
+    font-family:'Playfair Display',serif; font-weight:900;
+    font-size:80px; line-height:1; color: rgba(0,0,0,.04);
+    pointer-events:none; user-select:none;
+  }
+  .upg-head {
+    display:flex; align-items:flex-start; gap:14px; margin-bottom:12px;
+  }
+  .upg-num {
+    font-family:'Playfair Display',serif; font-weight:900;
+    font-size:28px; line-height:1; flex-shrink:0;
+  }
+  .upg-num.g { color:var(--g); }
+  .upg-num.b { color:var(--b); }
+  .upg-num.v { color:var(--v); }
+  .upg h3 { font-size:14px; margin-bottom:6px; }
+  .upg p { font-size:12px; line-height:1.65; }
+  .upg-foot {
+    margin-top:12px; padding-top:12px; border-top:1px solid var(--rule);
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+  .effort {
+    font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted);
+  }
+  .tags { display:flex; gap:6px; flex-wrap:wrap; }
+  .tag {
+    padding:2px 9px; border-radius:999px; font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+  }
+  .tg  { background:var(--gl); color:var(--g); }
+  .tr  { background:var(--rl); color:var(--r); }
+  .ta  { background:var(--al); color:var(--a); }
+  .tb  { background:var(--bl); color:var(--b); }
+  .tv  { background:var(--vl); color:var(--v); }
+
+  /* MUST-DO strip */
+  .must-strip {
+    background:var(--r); color:#fff; border-radius:8px;
+    padding:10px 18px; margin-bottom:8px;
+    font-family:'IBM Plex Mono',monospace; font-size:11px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .must-strip .label { font-weight:500; letter-spacing:.1em; text-transform:uppercase; opacity:.7; flex-shrink:0; }
+
+  /* ── WHAT JUDGES SCORE ── */
+  .judge-row {
+    display:grid; grid-template-columns:180px 1fr 120px; gap:16px;
+    align-items:center; padding:14px 0; border-bottom:1px solid var(--rule);
+    font-size:13px;
+  }
+  .judge-row:last-child { border-bottom:none; }
+  .judge-criterion { font-weight:600; color:var(--ink); }
+  .judge-desc { color:var(--ink2); font-size:12px; }
+  .judge-attune {
+    font-family:'IBM Plex Mono',monospace; font-size:11px;
+    text-align:right; color:var(--g); font-weight:500;
+  }
+
+  /* ── DEMO SCRIPT ── */
+  .demo-wrap { border:1.5px solid var(--rule); border-radius:12px; overflow:hidden; background:#fff; }
+  .demo-beat {
+    display:grid; grid-template-columns:88px 1fr; gap:0;
+    border-bottom:1px solid var(--rule);
+  }
+  .demo-beat:last-child { border-bottom:none; }
+  .demo-t {
+    background:var(--cream); padding:18px 16px;
+    font-family:'IBM Plex Mono',monospace; font-size:12px;
+    color:var(--g); font-weight:500; line-height:1.3;
+    border-right:1px solid var(--rule); display:flex; align-items:center;
+  }
+  .demo-c { padding:18px 20px; }
+  .demo-c h3 { font-size:13px; margin-bottom:6px; }
+  .demo-c p { font-size:12px; }
+  .demo-wow {
+    background:var(--gl); border-left:3px solid var(--g);
+    border-radius:0 6px 6px 0; padding:8px 12px; margin-top:8px;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--g);
+  }
+  .demo-alert {
+    background:var(--al); border-left:3px solid var(--a);
+    border-radius:0 6px 6px 0; padding:8px 12px; margin-top:8px;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--a);
+  }
+
+  /* ── MOATS ── */
+  .moat {
+    border:1.5px solid var(--rule); border-radius:10px; padding:22px; background:#fff;
+  }
+  .moat-rank {
+    font-family:'IBM Plex Mono',monospace; font-size:10px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px;
+  }
+  .moat h3 { font-size:14px; margin-bottom:6px; }
+  .moat p { font-size:12px; }
+
+  /* ── PITCH CLOSE ── */
+  .pitch {
+    background:var(--ink); border-radius:14px; padding:44px 48px; margin-top:48px; position:relative; overflow:hidden;
+  }
+  .pitch::after {
+    content:''; position:absolute; bottom:-60px; left:-60px;
+    width:280px; height:280px; border-radius:50%;
+    background:radial-gradient(circle,rgba(29,99,68,.4),transparent 70%);
+    pointer-events:none;
+  }
+  .pitch h2 { color:#fff; font-size:28px; margin-bottom:20px; }
+  .pitch p { color:rgba(255,255,255,.55); font-size:13px; }
+  .pitch strong { color:#fff; }
+  .pitch-line {
+    background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
+    border-radius:8px; padding:13px 18px; margin:8px 0;
+    font-family:'IBM Plex Mono',monospace; font-size:12px;
+    color:#86efac; display:flex; gap:14px; align-items:baseline;
+  }
+  .pl { color:rgba(255,255,255,.3); font-size:10px; letter-spacing:.12em; text-transform:uppercase; flex-shrink:0; width:90px; }
+  .oneliner {
+    border:1.5px solid rgba(110,231,183,.35); border-radius:10px;
+    padding:20px 26px; margin:24px 0;
+    font-family:'Playfair Display',serif; font-style:italic;
+    font-size:19px; color:#6ee7b7; line-height:1.55;
+  }
+
+  /* ── STAT PILLS ── */
+  .stats { display:flex; gap:24px; flex-wrap:wrap; margin:24px 0; }
+  .stat { }
+  .stat-n {
+    font-family:'Playfair Display',serif; font-weight:900;
+    font-size:52px; line-height:1; color:var(--g);
+  }
+  .stat-l {
+    font-family:'IBM Plex Mono',monospace; font-size:10px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:2px;
+  }
+
+  .callout {
+    background:var(--cream); border:1.5px solid var(--rule);
+    border-radius:10px; padding:20px 24px; margin:16px 0;
+  }
+  .callout .cl { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:var(--a); margin-bottom:8px; }
+  .callout p { font-size:13px; }
+</style>
+</head>
+<body>
+
+<!-- MASTHEAD -->
+<div class="mast">
+  <div class="mast-kicker">Attune · AI Architect Intelligence Brief · Feb 2026</div>
+  <h1>How Attune Beats<br>Every Competitor &<br>Wins <em>Top 1%</em></h1>
+  <div class="mast-sub">A full competitive teardown of Tiimo, Inflow, Focusmate, Fluidwave + the 9 precise upgrades that transform a good MVP into the one judges fund. Every upgrade is scoped to your 3–4 day window.</div>
+  <div class="mast-badges">
+    <span class="mbadge mbg">Category-Creating Insight</span>
+    <span class="mbadge mbb">Harvard ASRS Clinical Foundation</span>
+    <span class="mbadge mbr">9 Buildable Upgrades</span>
+    <span class="mbadge mba">Investment-Ready Pitch</span>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- SECTION 1: THE FATAL FLAW -->
+  <hr class="rule">
+  <div class="sec-label">Section 01 — The One Fatal Flaw Across All Competitors</div>
+
+  <div class="two">
+    <div>
+      <h2>Every ADHD App Makes the Same Fatal Mistake</h2>
+      <p>After a full competitive analysis of Tiimo, Inflow, Focusmate, Fluidwave, Habitica, Routinery, and Lifestack — one pattern repeats without exception: <strong>every app is a tool the user must operate.</strong></p>
+      <p>They require the person with ADHD to open the app, remember to check in, initiate the plan, and decide what to do next. That is — clinically and precisely — the list of things ADHD destroys.</p>
+      <div class="pull">
+        <p>"Every existing ADHD app is a hammer asking someone with no grip strength to hold it. Attune is the hand."</p>
+      </div>
+      <p>This is not a UX critique. It is a category error. The entire $13B ADHD digital health market is building tools that require the exact executive functions ADHD patients lack. Attune is the first system designed to act <em>on behalf</em> of the user — not wait to be operated.</p>
+    </div>
+    <div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-n">500K+</div>
+          <div class="stat-l">Tiimo users — zero agentic behavior, zero auto-intervention</div>
+        </div>
+        <div class="stat">
+          <div class="stat-n">$13B</div>
+          <div class="stat-l">Market with no AI-native agent-first competitor. Zero.</div>
+        </div>
+        <div class="stat">
+          <div class="stat-n">366M</div>
+          <div class="stat-l">Adults with ADHD globally. No one acts for them.</div>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="cl">The Tiimo Benchmark</div>
+        <p>Tiimo won iPhone App of the Year 2025. It has 500K+ users. It is built by neurodivergent people for neurodivergent people. Its AI co-planner breaks tasks into steps. <strong>It still requires the user to open it, build the plan, and trigger it manually every day.</strong> That is the gap. That is Attune's entire reason to exist.</p>
+      </div>
+      <div class="callout">
+        <div class="cl">What Hackathon Judges Fund</div>
+        <p>Across 570 submissions at the 2025 Microsoft AI Agents Hackathon, winning projects were judged on <strong>innovation, impact, usability, and real-world applicability.</strong> RiskWise won Best Overall not for complexity — for solving a real problem autonomously. Attune does the same for 366M people.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: COMPETITOR TABLE -->
+  <hr class="rule">
+  <div class="sec-label">Section 02 — Full Competitor Teardown</div>
+
+  <table class="ct">
+    <thead>
+      <tr>
+        <th>App</th>
+        <th>Core Strength</th>
+        <th>Clinical Screen?</th>
+        <th>True AI Agent?</th>
+        <th>Auto-Intervenes?</th>
+        <th>Cognitive Profile?</th>
+        <th>Learns Over Time?</th>
+        <th>Fatal Gap</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Tiimo</strong><br><span style="font-size:11px;color:var(--muted)">App of Year 2025 · 500K users</span></td>
+        <td>Visual timeline, neurodivergent-first design</td>
+        <td class="cx">✗ None</td>
+        <td class="cp">⬤ Task breakdown only</td>
+        <td class="cx">✗ User must trigger</td>
+        <td class="cx">✗ None</td>
+        <td class="cx">✗ No</td>
+        <td style="font-size:11px;">Passive tool. User still does everything.</td>
+      </tr>
+      <tr>
+        <td><strong>Inflow</strong><br><span style="font-size:11px;color:var(--muted)">CBT curriculum · Doctor-designed</span></td>
+        <td>Science-backed CBT modules, community</td>
+        <td class="cp">⬤ Informal quiz</td>
+        <td class="cx">✗ Static content</td>
+        <td class="cx">✗ Never</td>
+        <td class="cx">✗ None</td>
+        <td class="cx">✗ No</td>
+        <td style="font-size:11px;">Library, not agent. Requires daily self-motivation.</td>
+      </tr>
+      <tr>
+        <td><strong>Focusmate</strong><br><span style="font-size:11px;color:var(--muted)">Body-doubling · Human accountability</span></td>
+        <td>Virtual co-working, proven body-double effect</td>
+        <td class="cx">✗ None</td>
+        <td class="cx">✗ Human-to-human</td>
+        <td class="cx">✗ Requires scheduling</td>
+        <td class="cx">✗ None</td>
+        <td class="cx">✗ No</td>
+        <td style="font-size:11px;">Requires scheduling — another initiation failure point.</td>
+      </tr>
+      <tr>
+        <td><strong>Fluidwave</strong><br><span style="font-size:11px;color:var(--muted)">AI auto-prioritization · Exec function</span></td>
+        <td>Smart task prioritization engine</td>
+        <td class="cx">✗ None</td>
+        <td class="cp">⬤ Priority only</td>
+        <td class="cx">✗ No</td>
+        <td class="cx">✗ None</td>
+        <td class="cx">✗ No</td>
+        <td style="font-size:11px;">Ranks tasks. Doesn't adapt to the person's brain.</td>
+      </tr>
+      <tr>
+        <td><strong>Habitica</strong><br><span style="font-size:11px;color:var(--muted)">Gamified · RPG elements</span></td>
+        <td>Gamification, community, free tier</td>
+        <td class="cx">✗ None</td>
+        <td class="cx">✗ None</td>
+        <td class="cx">✗ None</td>
+        <td class="cx">✗ None</td>
+        <td class="cx">✗ No</td>
+        <td style="font-size:11px;">Novelty-first. Effectiveness fades as novelty does.</td>
+      </tr>
+      <tr>
+        <td><strong>Lifestack</strong><br><span style="font-size:11px;color:var(--muted)">Energy-aware calendar</span></td>
+        <td>Plans around energy levels</td>
+        <td class="cx">✗ None</td>
+        <td class="cp">⬤ Energy scheduling</td>
+        <td class="cx">✗ No</td>
+        <td class="cx">✗ None</td>
+        <td class="cx">✗ No</td>
+        <td style="font-size:11px;">Good idea, no clinical grounding, no adaptive agent.</td>
+      </tr>
+      <tr class="at">
+        <td>Attune<br><span style="font-size:11px;color:var(--g)">Harvard ASRS · 3-agent loop</span></td>
+        <td>Clinical screening + profile-adaptive planning + real-time intervention</td>
+        <td class="ck">✓ Harvard ASRS-6</td>
+        <td class="ck">✓ Full 3-agent loop</td>
+        <td class="ck">✓ Autonomous on trigger</td>
+        <td class="ck">✓ Radar portrait</td>
+        <td class="ck">✓ Hypothesis card</td>
+        <td style="font-size:11px;color:var(--g)">None of the above apply. New category.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SECTION 3: WHAT JUDGES SCORE -->
+  <hr class="rule">
+  <div class="sec-label">Section 03 — What Investment Judges Actually Score (With Attune's Answer)</div>
+
+  <div class="two">
+    <div>
+      <div class="judge-row">
+        <div class="judge-criterion">Innovation</div>
+        <div class="judge-desc">Does it do something that doesn't exist? Not just a new feature — a new category?</div>
+        <div class="judge-attune">Executive function as a service. Category doesn't exist.</div>
+      </div>
+      <div class="judge-row">
+        <div class="judge-criterion">Real-World Impact</div>
+        <div class="judge-desc">Would 366M people use this? Is the pain point severe enough to drive adoption?</div>
+        <div class="judge-attune">Clinically validated pain point. Harvard-grounded.</div>
+      </div>
+      <div class="judge-row">
+        <div class="judge-criterion">Technical Depth</div>
+        <div class="judge-desc">Is it actually agentic? Does it reason, act, adapt autonomously or just call an API?</div>
+        <div class="judge-attune">3-agent loop. Real orchestration. Live restructure.</div>
+      </div>
+      <div class="judge-row">
+        <div class="judge-criterion">Demo Quality</div>
+        <div class="judge-desc">Can you show it working in 4 minutes? Is there a moment that stops conversation?</div>
+        <div class="judge-attune">Radar reveal + live restructure = 2 undeniable moments.</div>
+      </div>
+      <div class="judge-row">
+        <div class="judge-criterion">Business Model</div>
+        <div class="judge-desc">Is there a clear path to revenue? Is the market large enough to be fundable?</div>
+        <div class="judge-attune">$15 B2C + $299 B2B coach tier. $13B market.</div>
+      </div>
+      <div class="judge-row">
+        <div class="judge-criterion">Defensibility</div>
+        <div class="judge-desc">Why can't someone copy this in 6 months? What compounds over time?</div>
+        <div class="judge-attune">Cognitive profile is the moat. Switching = starting over.</div>
+      </div>
+    </div>
+    <div>
+      <div class="callout" style="margin-bottom:16px;">
+        <div class="cl">The Pattern Across Every 2025 Hackathon Winner</div>
+        <p>RiskWise (Microsoft, Best Overall), Edu.AI (Google ADK), SalesShortcut (Google ADK) — all three won for the same reason: they picked a <strong>specific, severe real-world problem</strong> and built an agent that acts autonomously to solve it. Not a demo of capability. An agent with a job.</p>
+        <p style="margin-top:8px;">Attune's job: act as the executive function that ADHD removes. Every competitor forgot to give their product a job.</p>
+      </div>
+      <div class="callout">
+        <div class="cl">Why Investment Judges ≠ Technical Judges</div>
+        <p>r/AI_Agents judges are funding potential, not code quality. They want to see: <strong>(1) a real problem at scale</strong>, <strong>(2) a solution only AI agents can deliver</strong>, <strong>(3) a business model that compounds</strong>. Attune has all three. Your job is to make them undeniable in 4 minutes — not to impress with architecture.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: THE 9 UPGRADES -->
+  <hr class="rule">
+  <div class="sec-label">Section 04 — The 9 Upgrades From Good MVP to Top 1%</div>
+
+  <p style="margin-bottom:8px; color:var(--muted); font-size:13px;">Sorted by impact-to-effort ratio. The first 4 are prompt changes — zero new code. Do them all.</p>
+
+  <div style="margin-bottom:16px;">
+    <div class="must-strip">
+      <span class="label">NEVER CUT</span>
+      Animated radar chart reveal · "I'm Stuck" live plan restructure · Hypothesis card updating live · Pre-seeded Alex account with 14 days of data
+    </div>
+  </div>
+
+  <div class="upg-grid">
+
+    <div class="upg" data-num="1">
+      <div class="upg-head">
+        <div class="upg-num g">1</div>
+        <div>
+          <h3>Rename cognitive tags in the user's own language</h3>
+          <p>No competitor personalizes how they describe a user's brain. Attune's radar portrait tags should feel like recognition, not diagnosis. Replace "Inattentive Presentation" → <em>"Your brain switches tracks mid-sentence — which is actually how insight works."</em> Replace "Hyperactive" → <em>"You have more energy than most environments are built for."</em> The framing is empowering, specific, and completely unlike anything in the market. This is a system prompt change — no code.</p>
+        </div>
+      </div>
+      <div class="upg-foot">
+        <div class="effort">⏱ 45 min · Prompt only · Zero API cost</div>
+        <div class="tags"><span class="tag tg">Demo: HIGH</span><span class="tag tg">Retention: VERY HIGH</span></div>
+      </div>
+    </div>
+
+    <div class="upg" data-num="2">
+      <div class="upg-head">
+        <div class="upg-num g">2</div>
+        <div>
+          <h3>"Why this plan" rationale under each task block</h3>
+          <p>Every app generates tasks. Zero of them explain why this order for this brain. Add one sentence of agent reasoning under each task: <em>"Scheduled first — your profile shows peak attention before 10am and this task requires sustained focus."</em> or <em>"Batched with similar tasks — your profile flags context-switching as your highest friction point."</em> This is the visible difference between a task manager and an executive function co-pilot. One sentence. Judges will read it and know immediately this is not Tiimo.</p>
+        </div>
+      </div>
+      <div class="upg-foot">
+        <div class="effort">⏱ 1 hr · Add JSON field to PLANNING_SYSTEM_PROMPT output</div>
+        <div class="tags"><span class="tag tg">Demo: HIGH</span><span class="tag ta">Build: LOW</span></div>
+      </div>
+    </div>
+
+    <div class="upg" data-num="3">
+      <div class="upg-head">
+        <div class="upg-num g">3</div>
+        <div>
+          <h3>Emotional acknowledgment before every intervention</h3>
+          <p>Clinically, the correct sequence for ADHD support is: acknowledge → validate → act. Every existing app goes directly to advice. Attune's intervention agent should always begin with one sentence of recognition: <em>"Getting stuck on something that felt important makes sense — that's not failure, that's your brain protecting you from a mismatch."</em> Then it acts. This single structural change makes Attune feel fundamentally different from every tool on the market. It is also the thing ADHD users say they need most. Prompt constraint — no code.</p>
+        </div>
+      </div>
+      <div class="upg-foot">
+        <div class="effort">⏱ 30 min · INTERVENTION_SYSTEM_PROMPT constraint</div>
+        <div class="tags"><span class="tag tg">Retention: VERY HIGH</span><span class="tag tv">Unique: YES</span></div>
+      </div>
+    </div>
+
+    <div class="upg" data-num="4">
+      <div class="upg-head">
+        <div class="upg-num g">4</div>
+        <div>
+          <h3>Hypothesis card uses predictive framing, not descriptive</h3>
+          <p>Change the hypothesis card output from describing what happened to anticipating what will: <em>"Attune identified on Day 3 that your focus degrades after 90 minutes of continuous screen time. Today's 2pm restructure was the agent acting on that pattern — before you asked."</em> The word <em>"before"</em> is doing critical work. It reframes Attune from reactive (responds to problems) to proactive (anticipates them). That distinction is exactly what judges mean by "agentic." It requires a single framing change in your HYPOTHESIS prompt — no new engineering.</p>
+        </div>
+      </div>
+      <div class="upg-foot">
+        <div class="effort">⏱ 30 min · HYPOTHESIS output framing change</div>
+        <div class="tags"><span class="tag tg">Investment framing: CRITICAL</span><span class="tag ta">Effort: MINIMAL</span></div>
+      </div>
+    </div>
+
+    <div class="upg" data-num="5">
+      <div class="upg-head">
+        <div class="upg-num b">5</div>
+        <div>
+          <h3>Brain State selector before plan generation</h3>
+          <p>Before Attune generates the daily plan, show three buttons: <strong>Foggy · Focused · Wired.</strong> Each routes to a different planning strategy injected into the PLANNING_SYSTEM_PROMPT. Foggy: fewer tasks, longer buffers, easiest task first. Focused: optimal cognitive schedule, medium difficulty opening, deep work blocked. Wired: front-load hardest tasks, build in movement breaks, shorten blocks. No competitor adapts to present-moment brain state — despite ADHD symptoms fluctuating significantly day-to-day. Two hours of frontend + prompt work. Gives judges a concrete, visible demonstration of what "adaptive AI agent" means.</p>
+        </div>
+      </div>
+      <div class="upg-foot">
+        <div class="effort">⏱ 2 hrs · 3-button UI + context injection into planning prompt</div>
+        <div class="tags"><span class="tag tb">Agentic depth: HIGH</span><span class="tag tg">Clinical accuracy: HIGH</span></div>
+      </div>
+    </div>
+
+    <div class="upg" data-num="6">
+      <div class="upg-head">
+        <div class="upg-num b">6</div>
+        <div>
+          <h3>Voice input on the check-in field (Web Speech API)</h3>
+          <p>People with ADHD in distress — the exact moment the intervention agent is needed — often cannot type coherently. The friction of formulating a sentence is when tools fail. Using the Web Speech API (free, no backend, Chrome only — fine for demo), add a mic icon to the check-in field. User speaks: <em>"I keep starting things and stopping, I don't even know what I was supposed to be doing."</em> It transcribes live. The agent responds to spoken natural language. No competitor does this. If built, do not announce it before the demo — narrate "Alex is overwhelmed and can't even type right now" and then speak into the mic live. The room will stop.</p>
+        </div>
+      </div>
+      <div class="upg-foot">
+        <div class="effort">⏱ 1 hr · Web Speech API · Free · Chrome only for demo</div>
+        <div class="tags"><span class="tag tg">Demo: MAXIMUM</span><span class="tag tv">Unique: YES</span></div>
+      </div>
+    </div>
+
+    <div class="upg" data-num="7">
+      <div class="upg-head">
+        <div class="upg-num b">7</div>
+        <div>
+          <h3>Animate the radar chart axis by axis on Screen 1</h3>
+          <p>After the final ASRS answer, the cognitive portrait radar should not appear instantly. Each axis should animate in with a 200ms stagger — first Time Perception, then Focus Regulation, then Emotional Intensity — with the profile tag appearing last as the chart completes. The full reveal takes 2.5 seconds and is visually unlike anything in the ADHD app landscape. This is the moment judges photograph for write-ups. It is the single most memorable visual in any ADHD tool at this hackathon. It is also 2 hours of Recharts animation work. It is not optional.</p>
+        </div>
+      </div>
+      <div class="upg-foot">
+        <div class="effort">⏱ 2 hrs · Recharts animation + staggered CSS reveal</div>
+        <div class="tags"><span class="tag tr">DO NOT CUT</span><span class="tag tg">Photo moment: YES</span></div>
+      </div>
+    </div>
+
+    <div class="upg" data-num="8">
+      <div class="upg-head">
+        <div class="upg-num v">8</div>
+        <div>
+          <h3>Seed "Alex" with 14 days of believable history</h3>
+          <p>A dashboard with 14 days of trend data, 3 agent annotations on the chart, a momentum score that shows an upward trajectory, and 2 hypothesis cards already written is worth 10x a fresh account in a demo. Write a seed script (2 hours) that creates realistic check-in data: two weeks of mood scores with a dip in week 1 and improvement in week 2, tasks completed at 60% then 75%, two agent restructures logged, one hypothesis card about afternoon focus drops. This is not fake data — it is illustrative data for a feature that is genuinely built. Every winning hackathon demo uses pre-seeded accounts. Judges know this.</p>
+        </div>
+      </div>
+      <div class="upg-foot">
+        <div class="effort">⏱ 2 hrs · Python seed script · One-time setup on Day 5</div>
+        <div class="tags"><span class="tag tr">DO NOT SKIP</span><span class="tag ta">ROI: VERY HIGH</span></div>
+      </div>
+    </div>
+
+    <div class="upg" data-num="9">
+      <div class="upg-head">
+        <div class="upg-num v">9</div>
+        <div>
+          <h3>One demo-only "second agent" moment the judges don't expect</h3>
+          <p>After the plan restructures on the intervention path, have the agent send one follow-up message 30 seconds later — unprompted: <em>"I noticed you chose restructuring over encouragement. I've updated your cognitive profile: you respond better to concrete action than affirmation when stuck. I'll remember this."</em> This is not a new feature. It is one additional LLM call triggered after the restructure action completes, with output written to the checkins table. 1.5 hours of backend work. It demonstrates longitudinal learning — the thing that makes Attune defensible — in a single live moment. This is the line judges will quote to each other after the demo.</p>
+        </div>
+      </div>
+      <div class="upg-foot">
+        <div class="effort">⏱ 1.5 hrs · Post-restructure follow-up call + profile note write</div>
+        <div class="tags"><span class="tag tv">Unexpected: YES</span><span class="tag tg">Moat demo: CRITICAL</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SECTION 5: COMPETITIVE MOATS -->
+  <hr class="rule">
+  <div class="sec-label">Section 05 — Three Moats That Make Attune Fundable Beyond the Hackathon</div>
+
+  <div class="three">
+    <div class="moat">
+      <div class="moat-rank">Moat 01 — Data Compounding</div>
+      <h3>The cognitive profile deepens every day</h3>
+      <p>Every check-in, restructure, completed task, and hypothesis confirmation trains Attune's model of a specific brain. After 30 days, Attune understands the user's patterns in a way no competitor can replicate — because no competitor collects this data structure. Switching to Tiimo means starting over entirely. This is the switching cost that creates LTV.</p>
+      <div class="tags" style="margin-top:10px;"><span class="tag tg">Switching cost: HIGH</span></div>
+    </div>
+    <div class="moat">
+      <div class="moat-rank">Moat 02 — Clinical Credibility</div>
+      <h3>Harvard ASRS creates trust no one else can fake</h3>
+      <p>Inflow says "doctor-designed." Attune uses the actual Harvard validated Adult ADHD Self-Report Scale — the same instrument used in peer-reviewed prevalence research. This is not marketing. It is a clinical credibility gap that competitors cannot close by relabeling their intake quiz. It also positions Attune as a natural partner for therapists, psychiatrists, and ADHD coaches who already use ASRS in practice.</p>
+      <div class="tags" style="margin-top:10px;"><span class="tag tb">Defensibility: HIGH</span></div>
+    </div>
+    <div class="moat">
+      <div class="moat-rank">Moat 03 — Category Ownership</div>
+      <h3>First mover in "executive function as a service"</h3>
+      <p>Tiimo, Inflow, Focusmate — none can credibly claim to be AI agents. They are AI-enhanced tools. Attune names and owns a category: executive function as a service. Being the first to define this category is worth more than feature parity with any competitor. Categories are won in the first 18 months. Attune's hackathon positioning is the first move of that category claim.</p>
+      <div class="tags" style="margin-top:10px;"><span class="tag tv">Category value: VERY HIGH</span></div>
+    </div>
+  </div>
+
+  <!-- SECTION 6: DEMO SCRIPT -->
+  <hr class="rule">
+  <div class="sec-label">Section 06 — The Perfected 4-Minute Demo Script</div>
+
+  <div class="two" style="margin-bottom:28px;">
+    <div>
+      <h2>Every second is engineered for one thing: judge memory</h2>
+      <p>The demo is not a product tour. It is a story. Protagonist: Alex, who has undiagnosed ADHD and has been losing hours every day to executive dysfunction. Antagonist: the moment when Alex gets stuck and every other tool fails. Resolution: Attune acts.</p>
+      <p>Structure it like a film, not a tutorial. Never narrate what judges can already see on screen. Every sentence should add context the UI cannot show.</p>
+    </div>
+    <div class="callout">
+      <div class="cl">The Two Rules of a Winning Demo</div>
+      <p><strong>Rule 1:</strong> One working loop that completes flawlessly is worth more than three impressive features that each half-work. Rehearse the core loop (Screen 1 → Screen 2 → Intervention → Plan Restructure) until it is effortless.<br><br>
+      <strong>Rule 2:</strong> End every major moment with a sentence about what it <em>means</em>, not what it <em>does</em>. "The agent just changed the plan" → "Alex never had to figure out what to do next. That's what executive function replacement looks like."</p>
+    </div>
+  </div>
+
+  <div class="demo-wrap">
+    <div class="demo-beat">
+      <div class="demo-t">0:00<br>→ 0:40</div>
+      <div class="demo-c">
+        <h3>The Hook — Do Not Open the App Yet</h3>
+        <p>"366 million adults have ADHD. The $13 billion market built to help them is full of apps that require self-management — the exact skill ADHD destroys. Every tool in this space is a hammer asking someone with no grip strength to hold it." [Pause.] "Attune is the hand."</p>
+        <div class="demo-alert">⚡ Do not show the screen for the first 40 seconds. Talk directly to judges. Eye contact. The pause before opening the app is the setup for everything that follows.</div>
+      </div>
+    </div>
+    <div class="demo-beat">
+      <div class="demo-t">0:40<br>→ 1:30</div>
+      <div class="demo-c">
+        <h3>Screen 1 — The ASRS Conversation</h3>
+        <p>Open the screening chat. Show 3 exchanges live (not all 6 — judges don't need to see the full test). After the last answer, pause before hitting submit. "Alex just answered 6 questions. Attune is about to tell them something no app ever has." Hit submit.</p>
+        <div class="demo-wow">⚡ WOW MOMENT: Radar chart animates axis by axis, staggered. Each dimension lights up. Profile tags appear last. Say: "This is Alex's cognitive portrait. Not a score. Not a label. A map of how their brain actually works." Let it breathe for 5 seconds. Let judges absorb it.</div>
+      </div>
+    </div>
+    <div class="demo-beat">
+      <div class="demo-t">1:30<br>→ 2:00</div>
+      <div class="demo-c">
+        <h3>Screen 2 — Brain State → Plan Generation</h3>
+        <p>Navigate to Screen 2. Click "Foggy" on the Brain State selector. "Alex's brain is running low today. Attune adjusts before generating the plan." Watch the plan appear. Point to the task rationale under the first block: "Attune scheduled this first — Alex's profile shows morning attention is their highest-functioning window, and this task requires sustained focus. The agent made that decision. Alex didn't have to."</p>
+      </div>
+    </div>
+    <div class="demo-beat">
+      <div class="demo-t">2:00<br>→ 2:50</div>
+      <div class="demo-c">
+        <h3>The Intervention — The Agentic Moment</h3>
+        <p>Click "I'm Stuck" on Task 2. [If voice is built: speak into the mic instead of typing.] "Alex is overwhelmed. Can't even type right now." Speak: "I keep starting things and I don't know where I was." Show the intervention response — acknowledge first, then restructure. Watch the timeline re-order live.</p>
+        <div class="demo-wow">⚡ WOW MOMENT: "The agent just restructured Alex's entire day. Alex never asked for that. The agent decided. That is what executive function replacement looks like — it acts before the user has to know they need help."</div>
+        <div class="demo-wow" style="margin-top:6px;">⚡ UPGRADE 9 MOMENT [if built]: 30 seconds later, a follow-up message appears unprompted: "I noticed restructuring works better for you than encouragement. I've updated your profile." Say: "Attune just learned something. Without being asked."</div>
+      </div>
+    </div>
+    <div class="demo-beat">
+      <div class="demo-t">2:50<br>→ 3:40</div>
+      <div class="demo-c">
+        <h3>Screen 3 — The Dashboard</h3>
+        <p>Navigate to the dashboard. Show Alex's 14-day trend line with the agent annotation at day 10: "Attune identified afternoon focus degradation — restructures increased." Show the hypothesis card: "Attune saw this pattern on Day 3. Today's restructure was the agent acting on it — before Alex asked." Point to the momentum score: "71. It was 48 two weeks ago."</p>
+        <div class="demo-alert">⚡ KEY LINE: "Every day you use Attune, it understands your brain better. After 90 days, no app can replicate your cognitive profile. That data is your moat as a user — and ours as a business."</div>
+      </div>
+    </div>
+    <div class="demo-beat">
+      <div class="demo-t">3:40<br>→ 4:00</div>
+      <div class="demo-c">
+        <h3>The Close — The Investment Pitch in 20 Seconds</h3>
+        <p>"$15 a month B2C. $299 a month white-label for ADHD coaches and therapists. $13 billion market growing 26% annually. No AI-native competitor. We're raising a seed round." Done. Don't add anything after that. Let it land.</p>
+        <div class="demo-wow">⚡ NEVER close with "thanks for watching" or "any questions." Close with the business model and stop talking. Silence after the business model is more powerful than any summary.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 7: VERDICT -->
+  <div class="pitch">
+    <h2>The Honest Top 1% Verdict</h2>
+    <div class="oneliner">"Attune is the first executive function agent — it doesn't wait for you to remember to use it. It acts."</div>
+    <p style="margin-bottom:20px;">Top 1% does not come from having more features. It comes from three things working in combination: a <strong>clinically credible insight</strong>, a <strong>demo moment that stops conversation in the room</strong>, and a <strong>business model that sounds obvious in retrospect</strong>. Attune has all three. The 7 days ahead are not about adding features. They are about making those three things <em>undeniable</em>.</p>
+    <div class="pitch-line"><span class="pl">Prompt wins</span>Upgrades 1, 2, 3, 4 are system prompt changes. 3 hours combined. Each adds a demo moment. None require new code. Do all four on Day 1.</div>
+    <div class="pitch-line"><span class="pl">Build wins</span>Animated radar (2h) + Brain State selector (2h) + Voice input (1h) + Follow-up agent moment (1.5h). 6.5 hrs total. All four are in scope.</div>
+    <div class="pitch-line"><span class="pl">Non-nego</span>Radar animation · Pre-seeded Alex account · Live plan restructure in the demo · Hypothesis card with predictive framing. None of these are optional.</div>
+    <div class="pitch-line"><span class="pl">Cut boldly</span>Anything not visible in a 4-minute demo does not exist for judges. Static seeded data is not a compromise — it is the correct engineering decision.</div>
+    <div class="pitch-line"><span class="pl">The gap</span>Tiimo won App of the Year 2025 with 500K users. Zero agentic behavior. Zero clinical screening. Zero cognitive profile. You are not competing with Tiimo. You are building above it.</div>
+    <div class="pitch-line"><span class="pl">Quote this</span"Every other ADHD app is a hammer asking someone with no grip strength to hold it. Attune is the hand." — Say it once. In the first 40 seconds. With confidence.</div>
+  </div>
+
+</div>
+</body>
+</html>
