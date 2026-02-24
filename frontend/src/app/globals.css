@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/* ─── Force light mode — no dark-mode overrides ─────────────────────────── */
+
+:root {
+  color-scheme: light;
+}
+
+/* ─── Attune design tokens — cream / muted-blue palette ─────────────────── */
+
+@theme {
+  /* Primary – calm slate blue */
+  --color-primary-50:  #eef2f7;
+  --color-primary-100: #d5e1ee;
+  --color-primary-200: #adc3de;
+  --color-primary-300: #809fca;
+  --color-primary-400: #5b7fa6;
+  --color-primary-500: #4a6a8e;
+  --color-primary-600: #3d5876;
+  --color-primary-700: #334963;
+  --color-primary-800: #2c3e54;
+  --color-primary-900: #243348;
+  --color-primary:     #4a6a8e;
+
+  /* Secondary – dusty periwinkle (soft accent) */
+  --color-secondary-50:  #f0f1f8;
+  --color-secondary-100: #dde0f2;
+  --color-secondary-200: #bfc4e6;
+  --color-secondary-300: #98a1d6;
+  --color-secondary-400: #7681c4;
+  --color-secondary-500: #5f6ab4;
+  --color-secondary-600: #4f589c;
+  --color-secondary-700: #424980;
+  --color-secondary-800: #383e6a;
+  --color-secondary-900: #303558;
+  --color-secondary:     #5f6ab4;
+
+  /* Accent – soft sage (subtle, non-stimulating) */
+  --color-accent-50:  #f0f5f2;
+  --color-accent-100: #d9eae0;
+  --color-accent-200: #b5d5c4;
+  --color-accent-300: #88bba3;
+  --color-accent-400: #5f9e82;
+  --color-accent-500: #3f8265;
+  --color-accent-600: #316950;
+  --color-accent-700: #285442;
+  --color-accent-800: #214437;
+  --color-accent-900: #1c382d;
+  --color-accent:     #3f8265;
+
+  /* Surfaces — warm cream */
+  --color-background: #f5f1ea;
+  --color-surface:    #fafaf7;
+  --color-muted:      #ede8df;
+  --color-border:     #d9d3c7;
+
+  /* Text — muted blue scale */
+  --color-foreground:       #3a5268;
+  --color-muted-foreground: #6b85a0;
+  --color-faint-foreground: #9bafc5;
+
+  /* Semantic */
+  --color-success: #3f8265;
+  --color-warning: #8b7355;
+  --color-error:   #8b4a4a;
+  --color-info:    #4a6a8e;
+}
+
+/* ─── Dynamic font references ───────────────────────────────────────────── */
+
+@theme inline {
+  --font-sans:  var(--font-ibm-plex-sans);
+  --font-serif: var(--font-playfair);
+  --font-mono:  var(--font-ibm-plex-mono);
+}
+
+/* ─── Base styles — override Tailwind's dark-mode preflight ─────────────── */
+
+html {
+  background-color: #f5f1ea;
+  color: #3a5268;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif), Georgia, serif;
+  color: var(--color-foreground);
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-muted); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-faint-foreground); }
