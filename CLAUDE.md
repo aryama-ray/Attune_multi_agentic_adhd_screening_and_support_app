@@ -968,12 +968,94 @@ If no user, redirect to landing. Show `<LoadingSpinner>` while loading.
 
 ## Person B: Feature 3 — Daily Planner + Intervention (`/plan`)
 
+### Design System Mapping (IMPORTANT)
+
+The actual frontend uses a **cream/blue palette**, not the green palette originally planned. Use these actual Tailwind classes:
+
+| Original Reference | Actual Class to Use | Hex |
+|---|---|---|
+| `bg-green` / `text-green` | `bg-primary` / `text-primary` | #4a6a8e |
+| `bg-green-light` | `bg-primary-50` | #eef2f7 |
+| `text-ink` | `text-foreground` | #3a5268 |
+| `text-ink-muted` | `text-muted-foreground` | #6b85a0 |
+| `text-ink-faint` | `text-faint-foreground` | #9bafc5 |
+| `bg-bg` | `bg-background` | #f5f1ea |
+| `bg-bg-card` | `bg-surface` | #fafaf7 |
+| `bg-red` / danger | `bg-error` | #8b4a4a |
+| `bg-amber` / warning | `bg-warning` | #8b7355 |
+| `bg-violet` | `bg-secondary` | #5f6ab4 |
+
+Brain state colors use CSS custom properties: `var(--brain-foggy)`, `var(--brain-focused)`, `var(--brain-wired)` — applied via inline `style` (not Tailwind classes).
+
+Existing component APIs:
+- `Button`: variants = `primary | secondary | outline | ghost | danger` (danger added by Person B)
+- `Badge`: colors = `primary | secondary | accent | success | warning | error | neutral`
+- `Card`: uses `bg-surface border-border shadow-sm`
+- `LoadingSpinner`: takes `size: number` (not string), `label?: string`
+
 ### Backend Endpoints Person B Owns
 
 | Endpoint | What it does | Backend file to fix if broken |
 |----------|-------------|------------------------------|
 | `POST /api/plan/generate` | Brain state + profile → CrewAI planning agent → task plan | `app/routes/plan.py`, `app/agents/planning_agent.py` |
 | `POST /api/plan/intervene` | Stuck trigger → CrewAI intervention agent → acknowledgment + restructured plan | `app/routes/plan.py`, `app/agents/intervention_agent.py` |
+
+### Task B-P0: Shared File Modifications (MUST DO FIRST)
+
+Person B must add to these Phase 1 files before building components. All changes are purely additive (appending new types, new exports, new CSS rules).
+
+**0a. `frontend/src/app/globals.css`** — Append after scrollbar section:
+- Brain state CSS variables: `--brain-foggy`, `--brain-foggy-light`, `--brain-focused`, `--brain-focused-light`, `--brain-wired`, `--brain-wired-light`
+- Category color variables: `--cat-deep-work`, `--cat-admin`, `--cat-creative`, etc. (mapped to existing `--color-primary`, `--color-secondary`, etc.)
+- Animations: `pulse-red` (pulsing box-shadow), `fadeIn` (opacity+translateY), `typewriter-caret` (blinking cursor)
+- Delay utilities: `.delay-100` through `.delay-2000`
+
+**0b. `frontend/src/types/index.ts`** — Append after `ApiError`:
+```ts
+export type BrainState = "foggy" | "focused" | "wired";
+
+export interface PlanTask {
+  index: number;
+  title: string;
+  description: string;
+  duration_minutes: number;  // snake_case matches backend
+  time_slot: string;         // snake_case matches backend
+  category: string;
+  rationale: string;
+  priority: string;
+  status: string;
+}
+
+export interface PlanResponse {
+  planId: string;
+  tasks: PlanTask[];
+  overallRationale: string;
+}
+
+export interface InterventionResponse {
+  interventionId: string;
+  acknowledgment: string;
+  restructuredTasks: PlanTask[];
+  agentReasoning: string;
+  followupHint?: string;
+}
+```
+
+**0c. `frontend/src/lib/api.ts`** — Add named exports (keep `export default api`):
+- `createGuestSession()` → `POST /api/auth/guest` → returns `{ userId, name, isGuest, hasProfile }`
+- `generatePlan(userId, brainState, tasks?)` → `POST /api/plan/generate` → returns `PlanResponse`
+- `triggerIntervention(userId, planId, stuckTaskIndex, userMessage?)` → `POST /api/plan/intervene` → returns `InterventionResponse`
+
+**0d. `frontend/src/lib/constants.ts`** — Append `BRAIN_STATES`, `CATEGORY_COLORS`, `CATEGORY_ICONS` (using `var(--brain-*)` and `var(--cat-*)` CSS variables).
+
+**0e. `frontend/src/hooks/useUser.tsx`** — Replace `loginAsGuest()`:
+- **Current**: creates local-only user with `crypto.randomUUID()` — backend never called
+- **Updated**: calls `createGuestSession()` from api.ts, maps `response.userId` → `user.id`, adds `isLoading` to context
+- This is **required** because plan/intervention API calls need a real Supabase userId
+
+**0f. `frontend/src/components/auth/GuestLoginButton.tsx`** — Make `handleClick` async, `await loginAsGuest()`, redirect to `/plan` (Alex has `hasProfile: true`).
+
+**0g. `frontend/src/components/ui/Button.tsx`** — Add `"danger"` variant: `"bg-error text-white hover:opacity-90 focus-visible:ring-error"`.
 
 ### Task B-P1: Daily Plan Hook — `src/hooks/useDailyPlan.ts`
 
@@ -993,18 +1075,18 @@ interface UseDailyPlanReturn {
 ```
 
 Logic:
-- `generateDailyPlan()`: calls `generatePlan(userId, brainState)`. Sets `plan`.
-- `triggerStuck(taskIndex, message)`: calls `triggerIntervention(userId, plan.planId, taskIndex, message)`. Sets `intervention`. Then updates `plan.tasks` to `intervention.restructuredTasks`.
+- `generateDailyPlan()`: calls `generatePlan(user.id, brainState)`. Sets `plan`.
+- `triggerStuck(taskIndex, message)`: calls `triggerIntervention(user.id, plan.planId, taskIndex, message)`. Sets `intervention`. Then updates `plan.tasks` to `intervention.restructuredTasks`.
 - `clearIntervention()`: sets `intervention` to null.
-- Get `userId` from `useUser()`.
+- Get `user.id` from `useUser()` context (mapped from backend `userId`).
 
 ### Task B-P2: Brain State Selector — `src/components/plan/BrainStateSelector.tsx`
 
 Props: `selected: BrainState | null`, `onSelect: (state: BrainState) => void`, `disabled?: boolean`.
 Layout: `grid grid-cols-3 gap-4`.
 Each button: `p-6 rounded-xl border-2 transition-all cursor-pointer text-center`.
-Unselected: `border-border bg-bg-card`. Selected: `border-[color] bg-[lightColor]` from `BRAIN_STATES`.
-Inside: lucide icon (`Cloud`/`Crosshair`/`Zap`) + label + description.
+Unselected: `border-border bg-surface`. Selected: inline `style={{ borderColor: state.color, backgroundColor: state.lightColor }}`.
+Inside: lucide icon (`Cloud`/`Crosshair`/`Zap`) + label + description (`text-muted-foreground`).
 
 ```tsx
 import { Cloud, Crosshair, Zap } from "lucide-react";
@@ -1016,30 +1098,30 @@ const ICONS = { foggy: Cloud, focused: Crosshair, wired: Zap };
 Props: `task: PlanTask`, `index: number`, `onStuck?: (index: number) => void`, `isNew?: boolean`.
 
 Layout: `<Card>` with `border-l-4` inline style `borderLeftColor: CATEGORY_COLORS[task.category]`.
-Row 1: Category icon (lucide) + title (`font-semibold`) + priority badge (high=red, medium=amber, low=gray).
-Row 2: `text-ink-muted text-sm` — time_slot + " · " + duration_minutes + " min".
-Row 3: Description `text-sm text-ink-muted`.
-Row 4: Separator, then rationale in `text-sm italic text-ink-faint mt-2`.
-If `task.status === "completed"`: green checkmark + strikethrough title.
-If `isNew`: apply `fade-in` class.
+Row 1: Category icon (lucide) + title (`font-semibold text-foreground`) + priority badge (`error`=high, `warning`=medium, `neutral`=low).
+Row 2: `text-muted-foreground text-sm` — time_slot + " · " + duration_minutes + " min".
+Row 3: Description `text-sm text-muted-foreground`.
+Row 4: Separator `border-t border-border`, then rationale in `text-sm italic text-faint-foreground mt-2`.
+If `task.status === "completed"`: `<CheckCircle2>` accent + strikethrough title + `opacity-60`.
+If `isNew`: apply `fade-in` class with staggered `animationDelay: index * 100ms`.
 
 ### Task B-P4: Daily Plan View — `src/components/plan/DailyPlanView.tsx`
 
 Props: `plan: PlanResponse`, `onStuck: (taskIndex: number) => void`.
-Header: brain state badge + date + overall rationale `italic text-ink-muted`.
+Header: `<Badge color="accent">` with today's date + overall rationale `italic text-muted-foreground`.
 Task list: `flex flex-col gap-4`, map tasks to `<TaskCard>`.
 
 ### Task B-P5: Stuck Button — `src/components/plan/StuckButton.tsx`
 
-Props: `onStuck: (taskIndex: number, message?: string) => void`, `taskCount: number`, `disabled?: boolean`.
+Props: `tasks: PlanTask[]`, `onStuck: (taskIndex: number, message?: string) => void`, `disabled?: boolean`.
 
 **Two-stage interaction:**
 
-Stage 1 (collapsed): `fixed bottom-6 right-6 z-40`. `bg-red text-white px-6 py-3 rounded-full font-semibold shadow-lg pulse-red`. Text: "I'm Stuck".
+Stage 1 (collapsed): `fixed bottom-6 right-6 z-40`. `bg-error text-white px-6 py-3 rounded-full font-semibold shadow-lg pulse-red`. Text: "I'm Stuck".
 
-Stage 2 (expanded, on click): Panel above button:
-- Task picker: radio buttons with task titles
-- Textarea: placeholder "What's happening? (optional)"
+Stage 2 (expanded, on click): Panel `w-80 rounded-xl border border-border bg-surface p-5 shadow-lg`:
+- Task picker: radio labels with `border-border` unselected / `border-primary bg-primary-50 text-primary` selected
+- Textarea: `border-border bg-background text-foreground placeholder:text-faint-foreground focus:border-primary`
 - `<Button variant="danger">` "Get Help"
 - `<Button variant="ghost">` "Cancel"
 On submit: `onStuck(selectedTaskIndex, messageText)`. On cancel: collapse back to Stage 1.
@@ -1051,47 +1133,58 @@ On submit: `onStuck(selectedTaskIndex, messageText)`. On cancel: collapse back t
 Props: `intervention: InterventionResponse`, `onClose: () => void`.
 
 Overlay: `fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center`.
-Panel: `bg-bg-card rounded-2xl max-w-xl w-full mx-4 p-8 shadow-lg max-h-[80vh] overflow-y-auto`.
+Panel: `bg-surface rounded-2xl max-w-xl w-full mx-4 p-8 shadow-lg max-h-[80vh] overflow-y-auto`.
 
 Render sequence:
-1. **Acknowledgment** (typewriter): "Attune hears you" heading (`font-serif text-xl text-green`). Text reveals character by character using `setInterval(25ms)` storing visible substring in `useState`.
+1. **Acknowledgment** (typewriter): "Attune hears you" heading (`font-serif text-xl font-semibold text-primary`). Text reveals character by character using `setInterval(25ms)` storing visible substring in `useState`. Blinking cursor via `typewriter-caret` class.
 2. **Restructured Plan** (appears 2s later): `useState<boolean>(false)` + `setTimeout(2000)`. `fade-in` animation. Map `intervention.restructuredTasks` to `<TaskCard isNew />`.
-3. **Agent Reasoning**: Collapsible "Why these changes?" section. `text-sm italic text-ink-muted`.
-4. **Close**: `<Button variant="primary">` "Got it, let's go" → `onClose`.
-5. **Followup hint**: If `intervention.followupHint`, show as `text-ink-faint text-xs`.
+3. **Agent Reasoning**: Collapsible "Why these changes?" button (`text-muted-foreground hover:text-foreground`). Content: `text-sm italic text-faint-foreground`.
+4. **Close**: `<Button variant="primary" size="lg" className="w-full">` "Got it, let's go" → `onClose`.
+5. **Followup hint**: If `intervention.followupHint`, show as `text-faint-foreground text-xs`.
 
 ### Task B-P7: Plan Page — `src/app/plan/page.tsx`
 
 ```
 <PageContainer>
   {!user → redirect to landing}
-  {!user?.hasProfile → redirect to /screening}
 
-  <h1 className="font-serif text-3xl font-bold">Your Daily Plan</h1>
+  <h1 className="mb-6 font-serif text-3xl font-bold text-foreground">Your Daily Plan</h1>
 
+  <p className="mb-3 text-sm text-muted-foreground">How is your brain feeling right now?</p>
   <BrainStateSelector selected={brainState} onSelect={setBrainState} disabled={isGenerating} />
 
-  {brainState && !plan && (
-    <Button onClick={generateDailyPlan} isLoading={isGenerating}>Generate My Plan</Button>
+  {brainState && !plan && !isGenerating && (
+    <Button onClick={generateDailyPlan} variant="primary" size="lg">Generate My Plan</Button>
   )}
 
-  {isGenerating && <LoadingSpinner label="AI agents are crafting your plan..." />}
+  {isGenerating && <LoadingSpinner size={32} label="AI agents are crafting your plan..." />}
 
-  {plan && <DailyPlanView plan={plan} onStuck={triggerStuck} />}
-  {plan && <StuckButton onStuck={triggerStuck} taskCount={plan.tasks.length} />}
+  {error && <div className="rounded-lg border border-error bg-error/5 p-4 text-sm text-error">{error}</div>}
+
+  {plan && !isGenerating && <DailyPlanView plan={plan} onStuck={triggerStuck} />}
+  {plan && !isGenerating && <StuckButton tasks={plan.tasks} onStuck={triggerStuck} disabled={isIntervening} />}
+
+  {isIntervening && !intervention && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+      <div className="rounded-xl bg-surface p-8 shadow-lg">
+        <LoadingSpinner size={32} label="Attune is thinking..." />
+      </div>
+    </div>
+  )}
+
   {intervention && <InterventionPanel intervention={intervention} onClose={clearIntervention} />}
 </PageContainer>
 ```
 
 ### Task B-P8: Integration Test — Planner + Intervention
 
-1. Login as guest (Alex has profile)
+1. Login as guest (Alex has profile — backend creates real user in Supabase)
 2. Navigate to `/plan`
-3. Select "Focused" brain state → card highlights green
-4. Click "Generate My Plan" → loading spinner → tasks appear with rationale
-5. Click "I'm Stuck" → red pill expands to panel
+3. Select "Focused" brain state → card highlights with sage green border/bg
+4. Click "Generate My Plan" → loading spinner → tasks appear with rationale (3-10s)
+5. Click "I'm Stuck" → red pill expands to panel with task picker
 6. Select a task, type "I can't focus on this", click "Get Help"
-7. Verify: typewriter acknowledgment appears, restructured plan fades in 2s later
+7. Verify: loading overlay, then typewriter acknowledgment appears, restructured plan fades in 2s later
 8. Click "Got it, let's go" → overlay closes, plan shows updated tasks
 
 ---
@@ -1201,15 +1294,29 @@ Guest login creates Alex with pre-seeded 14-day history:
 | Body text | IBM Plex Sans | 400 (regular) |
 | Buttons | IBM Plex Sans | 500 (medium) |
 
-| Color | Hex | Usage |
-|-------|-----|-------|
-| Background | `#faf9f6` | Page bg |
-| Card bg | `#ffffff` | Cards |
-| Green | `#1d6344` | Primary brand, CTAs |
-| Red | `#b83b10` | Danger, stuck button |
-| Amber | `#a05f10` | Warnings |
-| Blue | `#1a40bf` | Deep work, completion line |
-| Violet | `#5c2fa0` | Creative, patterns |
+### Actual Color Palette (cream/blue — implemented in globals.css)
+
+| Token | Hex | Tailwind Class | Usage |
+|-------|-----|---------------|-------|
+| Background | `#f5f1ea` | `bg-background` | Page bg |
+| Surface | `#fafaf7` | `bg-surface` | Cards |
+| Primary | `#4a6a8e` | `bg-primary` / `text-primary` | CTAs, links |
+| Secondary | `#5f6ab4` | `bg-secondary` | Creative, patterns |
+| Accent | `#3f8265` | `bg-accent` / `text-accent` | Success, sage green |
+| Error | `#8b4a4a` | `bg-error` / `text-error` | Danger, stuck button |
+| Warning | `#8b7355` | `text-warning` | Warnings |
+| Foreground | `#3a5268` | `text-foreground` | Primary text |
+| Muted fg | `#6b85a0` | `text-muted-foreground` | Secondary text |
+| Faint fg | `#9bafc5` | `text-faint-foreground` | Tertiary text |
+| Border | `#d9d3c7` | `border-border` | Borders |
+
+### Brain State Colors (CSS custom properties)
+
+| State | Color | Light | CSS Variable |
+|-------|-------|-------|-------------|
+| Foggy | `#8b95a5` | `#f0f2f5` | `var(--brain-foggy)` |
+| Focused | `#3f8265` | `#f0f5f2` | `var(--brain-focused)` |
+| Wired | `#8b4a4a` | `#f5efef` | `var(--brain-wired)` |
 
 **No dark mode.** Light theme only.
 
@@ -1219,11 +1326,12 @@ Guest login creates Alex with pre-seeded 14-day history:
 
 ```
 main
- └── backend                          ← current (backend done)
-      └── frontend-foundation         ← Phase 1 (merge when gate passes)
-           ├── feature/screening-dashboard  ← Person A Phase 2
-           └── feature/planner-intervention ← Person B Phase 2
+ └── backend                          ← Phase 1 complete (backend + frontend-foundation merged)
+      ├── feature/screening-dashboard  ← Person A Phase 2
+      └── feature/planner-intervention ← Person B Phase 2 (current)
 ```
+
+Phase 1 `deb/frontend-foundation` has been merged into `backend`. Both feature branches are created from `backend`.
 
 ---
 
@@ -1249,3 +1357,187 @@ main
 | 1:00-2:30 | Screening — 6 questions, radar chart, profile tags | Person A |
 | 2:30-3:30 | Planner — brain state, generate plan, tasks with rationale | Person B |
 | 3:30-4:00 | Intervention — "I'm Stuck", typewriter, restructured plan | Person B |
+
+---
+
+# END-TO-END TEST FLOWS
+
+> 3 user journeys covering all features. All use the seeded Alex guest account (`UUID: 00000000-0000-0000-0000-000000000001`).
+
+## Prerequisites (All Flows)
+
+```bash
+# Terminal 1: Backend
+cd backend && source venv/bin/activate && uvicorn main:app --reload --port 8000
+
+# Terminal 2: Frontend
+cd frontend && npm run dev
+```
+
+- Verify: `curl http://localhost:8000/` → `{"status":"ok"}`
+- Verify: `http://localhost:3000` loads landing page
+- Clear localStorage before each flow: DevTools > Application > Local Storage > Clear
+
+---
+
+## Flow 1: First-Time Guest — Plan + Intervention
+
+**Persona:** Alex has never used Attune. Lands on homepage, logs in, generates a plan, gets stuck, receives intervention.
+
+| # | Action | Expected Result | Verify |
+|---|--------|-----------------|--------|
+| 1 | Open `http://localhost:3000` | Landing page with hero headline, stats, CTAs | Page renders, no console errors |
+| 2 | Click **"Continue as Guest"** | Loading spinner on button | `POST /api/auth/guest` fires in Network tab |
+| 3 | Wait for redirect | Navigates to `/plan` (Alex has `hasProfile: true`) | URL is `/plan`, navbar shows "Alex" pill |
+| 4 | Verify plan page idle state | "Your Daily Plan" heading, 3 brain state cards (Foggy/Focused/Wired), no generate button yet | All 3 cards visible with icons (Cloud/Crosshair/Zap) |
+| 5 | Click **"Focused"** card | Card highlights with sage green border + light green bg | `border-color` matches `var(--brain-focused)` |
+| 6 | Verify generate button appears | "Generate My Plan" primary button visible | Button not disabled |
+| 7 | Click **"Generate My Plan"** | Spinner: "AI agents are crafting your plan..." | `POST /api/plan/generate` with `brainState: "focused"` |
+| 8 | Wait 3-10s for CrewAI | Spinner persists, no timeout | No 500 error, no CORS error |
+| 9 | Plan appears | 4-6 task cards with fade-in stagger animation | Each card: title, time_slot, duration, category color bar, priority badge, rationale |
+| 10 | Verify overall rationale | Italic text above task list explaining plan logic | Text is non-empty, references "focused" state |
+| 11 | Verify "I'm Stuck" button | Red pulsing pill in bottom-right corner | `pulse-red` animation visible |
+| 12 | Click **"I'm Stuck"** | Panel expands: task picker radios + textarea + "Get Help" / "Cancel" | Only non-completed tasks shown as options |
+| 13 | Select first task radio | Radio highlights with primary border/bg | One task selected |
+| 14 | Type `"I can't focus on this"` in textarea | Text appears in input | Textarea not disabled |
+| 15 | Click **"Get Help"** | Panel collapses, full-screen overlay: "Attune is thinking..." spinner | `POST /api/plan/intervene` fires |
+| 16 | Wait 3-10s for CrewAI | Overlay persists with spinner | No timeout, no error |
+| 17 | Intervention panel appears | **Typewriter effect**: "Attune hears you" heading, then acknowledgment text reveals char-by-char (~25ms/char) | Blinking cursor visible during typing |
+| 18 | Wait 2s after typing starts | Restructured tasks fade in below acknowledgment | `fade-in` animation, tasks have `isNew` styling |
+| 19 | Verify restructured tasks | Smaller micro-steps replacing the stuck task, momentum starter added | Task count may differ from original, durations shorter |
+| 20 | Click **"Why these changes?"** | Reasoning section expands with agent logic | References Alex's cognitive profile |
+| 21 | Verify followup hint (if present) | Small faint text at bottom | Optional — may or may not appear |
+| 22 | Click **"Got it, let's go"** | Overlay closes | Plan view now shows restructured tasks |
+| 23 | Verify plan updated | Original task list replaced with intervention's `restructuredTasks` | Task cards reflect new titles/durations |
+
+**Critical assertions:**
+- No 500 errors at any step
+- Typewriter completes (not instant)
+- Restructured tasks visibly different from original
+- Plan persists after closing intervention
+
+---
+
+## Flow 2: Screening-First User — ASRS Assessment + Plan
+
+**Persona:** Alex wants to understand their cognitive profile first, then generate a plan with "Foggy" brain state.
+
+| # | Action | Expected Result | Verify |
+|---|--------|-----------------|--------|
+| 1 | Clear localStorage, open `http://localhost:3000` | Landing page loads fresh | No stored user |
+| 2 | Click **"Continue as Guest"** | Redirects to `/plan` | Alex seeded with `hasProfile: true` |
+| 3 | Navigate to **`/screening`** via navbar or URL | Screening page loads | "Let's understand how your brain works" heading |
+| 4 | Click **"Begin Screening"** | Chat interface appears, question 1 in agent bubble | Phase transitions to "questioning" |
+| 5 | Read Q1 | "How often do you have trouble wrapping up the final details..." | Matches `ASRS_QUESTIONS[0]` |
+| 6 | Click **"Often"** (score=3) | User ChatBubble shows "Often", 500ms pause | Answer stored in state |
+| 7 | Q2 appears after 500ms | "How often do you have difficulty getting things in order..." | Auto-scroll to new question |
+| 8 | Answer Q2: **"Sometimes"** (score=2) | User bubble + 500ms delay | Index increments to 2 |
+| 9 | Answer Q3: **"Often"** (score=3) | "problems remembering appointments" → "Often" | |
+| 10 | Answer Q4: **"Very Often"** (score=4) | "task that requires a lot of thought" → "Very Often" | |
+| 11 | Answer Q5: **"Rarely"** (score=1) | "fidget or squirm" → "Rarely" | |
+| 12 | Answer Q6: **"Sometimes"** (score=2) | "feel overly active" → "Sometimes" | Last question |
+| 13 | Phase transitions to "evaluating" | Typing dots animation in agent bubble | `POST /api/screening/evaluate` fires with 6 answers |
+| 14 | Wait 3-10s for CrewAI | Typing dots persist | No timeout |
+| 15 | Radar chart appears | CognitiveRadarChart with 6 dimensions | Chart rendered via recharts |
+| 16 | Verify staggered animation | Each dimension fills in with 200ms delay (total ~1.2s) | Values animate from 0 to final score |
+| 17 | Verify all 6 dimensions labeled | Attention Regulation, Time Perception, Emotional Intensity, Working Memory, Task Initiation, Hyperfocus Capacity | All axes visible |
+| 18 | Profile tags fade in (~1.5s after radar) | 3 Badge components appear with stagger | Tags like "Deep-Diver", "Momentum-Builder" etc. |
+| 19 | Summary text fades in | Paragraph describing cognitive profile | Non-empty, personalized text |
+| 20 | Click **"Continue to Plan"** | Navigates to `/plan` | URL is `/plan` |
+| 21 | Select **"Foggy"** brain state | Card highlights with gray/blue border | Different plan than "focused" |
+| 22 | Click **"Generate My Plan"** | Spinner → CrewAI generates foggy-optimized plan | Tasks should have shorter durations, momentum starters |
+| 23 | Verify foggy-appropriate tasks | Plan accounts for low energy: shorter blocks, easier tasks first | Rationale mentions "foggy" or "low energy" |
+
+**Critical assertions:**
+- All 6 questions appear in correct order
+- 500ms delay between questions is perceptible
+- Radar chart animates (not static)
+- Profile tags are non-empty and relevant
+- Screening agent produces valid 0-100 dimension scores
+- "Foggy" plan differs meaningfully from "focused" plan
+
+---
+
+## Flow 3: Returning User — Dashboard Review + Re-Plan with "Wired" State
+
+**Persona:** Alex has been using Attune for 14 days (seeded data). Reviews progress on dashboard, then plans with high energy and triggers multiple interventions.
+
+| # | Action | Expected Result | Verify |
+|---|--------|-----------------|--------|
+| 1 | Open `http://localhost:3000`, login as guest if needed | Alex session active | Navbar shows "Alex" |
+| 2 | Navigate to **`/dashboard`** | Dashboard page loads | `GET /api/dashboard/{userId}` returns 200 |
+| 3 | Verify momentum score | Large number displays, counts up from 0 to ~71 over ~1s | `count-up` animation visible |
+| 4 | Verify momentum delta | Shows **+23** with green up-arrow icon | `TrendingUp` icon in green |
+| 5 | Verify trend chart | Line chart with 14 data points | Two lines: mood (green) + completion (blue) |
+| 6 | Verify annotation dots | Red dots at **day 4** and **day 11** | Intervention markers visible on chart |
+| 7 | Verify hypothesis card 1 | "Energy Crash Pattern" — high confidence, active status | Green confidence dot, "active" badge |
+| 8 | Read card 1 prediction | "Low-energy days follow 2+ consecutive high-output days" | Evidence bullets reference specific days |
+| 9 | Verify hypothesis card 2 | "Momentum Activation Pattern" — medium confidence, confirmed status | Amber confidence dot, "confirmed" badge |
+| 10 | Read card 2 prediction | "First task completed within 30min → +1.5 mood" | Evidence references days 2, 8, 14 |
+| 11 | Navigate to **`/plan`** | Plan page loads | Brain state selector visible |
+| 12 | Select **"Wired"** brain state | Card highlights with red/warm border | Uses `var(--brain-wired)` color |
+| 13 | Click **"Generate My Plan"** | Spinner → CrewAI generates wired-optimized plan | `POST /api/plan/generate` with `brainState: "wired"` |
+| 14 | Verify wired-appropriate tasks | Plan channels high energy: physical tasks, complex work, shorter breaks | Rationale mentions "wired" or "high energy" or "restless" |
+| 15 | Click **"I'm Stuck"** | Panel expands | Task options visible |
+| 16 | Select a task, type **"too many things going on in my head"** | Task selected, message entered | |
+| 17 | Click **"Get Help"** | Loading overlay → intervention agent runs | `POST /api/plan/intervene` fires |
+| 18 | Verify acknowledgment tone | Typewriter text acknowledges the *wired* experience specifically | Should reference racing thoughts / overstimulation, not low energy |
+| 19 | Verify restructured tasks | Tasks reorganized for wired brain: channel energy, reduce overwhelm | Different restructuring strategy than foggy/focused |
+| 20 | Close intervention | Plan updates | New task list persists |
+| 21 | Click **"I'm Stuck"** again on a different task | Second intervention triggers | System handles multiple interventions in one session |
+| 22 | Verify second acknowledgment | Different text from first (not cached) | CrewAI generates fresh response |
+| 23 | Close second intervention | Plan updates again | Tasks reflect both restructurings |
+
+**Critical assertions:**
+- Dashboard data matches seeded values (momentum ~71, delta ~23, 14 days, 2 cards)
+- Momentum count-up animation is smooth (not instant jump)
+- "Wired" plan meaningfully differs from "focused" and "foggy" plans
+- Intervention acknowledgment is contextual to brain state and user message
+- Multiple interventions in one session work without errors
+- Each intervention produces unique acknowledgment text
+
+---
+
+## Error Scenarios (Verify Across All Flows)
+
+| Scenario | How to Trigger | Expected Behavior |
+|----------|---------------|-------------------|
+| Backend down | Stop uvicorn, click "Generate My Plan" | Error banner (red box with message), no crash |
+| Stale localStorage | Manually edit localStorage UUID to bogus value | 500 on API calls, should show error state |
+| CrewAI slow response | Normal — agents take 3-10s | Spinner persists, no premature timeout |
+| Double-click generate | Click "Generate" twice rapidly | Button disabled during `isGenerating`, only one request fires |
+| Empty stuck message | Click "Get Help" without typing | Should still work (`userMessage` is optional) |
+| Browser refresh mid-plan | Refresh page after plan generated | Plan state lost (React state only), user stays logged in, can regenerate |
+
+---
+
+## Backend Quick Verification (curl)
+
+```bash
+# Health check
+curl http://localhost:8000/
+
+# Guest login
+curl -X POST http://localhost:8000/api/auth/guest -H "Content-Type: application/json"
+
+# Profile
+curl http://localhost:8000/api/profile/00000000-0000-0000-0000-000000000001
+
+# Dashboard
+curl http://localhost:8000/api/dashboard/00000000-0000-0000-0000-000000000001
+
+# Generate plan
+curl -X POST http://localhost:8000/api/plan/generate \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"00000000-0000-0000-0000-000000000001","brainState":"focused"}'
+
+# Intervention (replace PLAN_ID with real ID from generate step)
+curl -X POST http://localhost:8000/api/plan/intervene \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"00000000-0000-0000-0000-000000000001","planId":"PLAN_ID","stuckTaskIndex":0,"userMessage":"I cannot focus"}'
+
+# Screening
+curl -X POST http://localhost:8000/api/screening/evaluate \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"00000000-0000-0000-0000-000000000001","answers":[{"questionIndex":0,"questionText":"...","score":3},{"questionIndex":1,"questionText":"...","score":2},{"questionIndex":2,"questionText":"...","score":3},{"questionIndex":3,"questionText":"...","score":4},{"questionIndex":4,"questionText":"...","score":2},{"questionIndex":5,"questionText":"...","score":1}]}'
+```

@@ -67,3 +67,37 @@ export interface ApiError {
   detail: string;
   status: number;
 }
+
+// ─── Brain State ─────────────────────────────────────────────────────────────
+
+export type BrainState = "foggy" | "focused" | "wired";
+
+// ─── Daily Plan (matches backend Task model) ─────────────────────────────────
+
+export interface PlanTask {
+  index: number;
+  title: string;
+  description: string;
+  duration_minutes: number;
+  time_slot: string;
+  category: string;
+  rationale: string;
+  priority: string;
+  status: string;
+}
+
+export interface PlanResponse {
+  planId: string;
+  tasks: PlanTask[];
+  overallRationale: string;
+}
+
+// ─── Intervention ────────────────────────────────────────────────────────────
+
+export interface InterventionResponse {
+  interventionId: string;
+  acknowledgment: string;
+  restructuredTasks: PlanTask[];
+  agentReasoning: string;
+  followupHint?: string;
+}

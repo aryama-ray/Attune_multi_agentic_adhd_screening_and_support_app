@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
 import Button from "@/components/ui/Button";
@@ -12,19 +13,28 @@ interface GuestLoginButtonProps {
 export default function GuestLoginButton({ className, children }: GuestLoginButtonProps) {
   const { user, loginAsGuest } = useUser();
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
-  function handleClick() {
+  async function handleClick() {
     if (!user) {
-      loginAsGuest();
-      // New guest always has hasProfile: false
-      router.push("/screening");
+      setLoading(true);
+      try {
+        await loginAsGuest();
+        // Alex has hasProfile: true, redirect to /plan for demo
+        router.push("/plan");
+      } catch {
+        // If backend is down, fall back to screening
+        router.push("/screening");
+      } finally {
+        setLoading(false);
+      }
       return;
     }
     router.push(user.hasProfile ? "/plan" : "/screening");
   }
 
   return (
-    <Button variant="outline" size="lg" onClick={handleClick} className={className}>
+    <Button variant="outline" size="lg" onClick={handleClick} isLoading={loading} className={className}>
       {children ?? "Continue as Guest"}
     </Button>
   );
