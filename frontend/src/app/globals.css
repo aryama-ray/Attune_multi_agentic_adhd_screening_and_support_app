@@ -1,143 +1,106 @@
 @import "tailwindcss";
 
+/* ─── Force light mode — no dark-mode overrides ─────────────────────────── */
+
 :root {
-  --bg: #faf9f6;
-  --bg-card: #ffffff;
-  --ink: #18160f;
-  --ink-muted: #6b6560;
-  --ink-faint: #a8a29e;
-  --border: #e7e5e0;
-  --border-focus: #1d6344;
-
-  /* Brand colors */
-  --green: #1d6344;
-  --green-light: #e8f5ee;
-  --green-dark: #145234;
-  --red: #b83b10;
-  --red-light: #fef2ed;
-  --amber: #a05f10;
-  --amber-light: #fef8ec;
-  --blue: #1a40bf;
-  --blue-light: #eef1fc;
-  --violet: #5c2fa0;
-  --violet-light: #f3eefb;
-
-  /* Brain state colors */
-  --foggy: #8b95a5;
-  --foggy-light: #f0f2f5;
-  --focused: #1d6344;
-  --focused-light: #e8f5ee;
-  --wired: #b83b10;
-  --wired-light: #fef2ed;
-
-  /* Category colors (for task cards) */
-  --cat-deep-work: #1a40bf;
-  --cat-admin: #6b6560;
-  --cat-creative: #5c2fa0;
-  --cat-physical: #1d6344;
-  --cat-social: #a05f10;
-  --cat-communication: #a05f10;
-  --cat-planning: #5c2fa0;
-  --cat-learning: #1a40bf;
-  --cat-review: #6b6560;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(24, 22, 15, 0.05);
-  --shadow-md: 0 4px 12px rgba(24, 22, 15, 0.08);
-  --shadow-lg: 0 8px 24px rgba(24, 22, 15, 0.12);
-
-  /* Radar chart colors */
-  --radar-fill: rgba(29, 99, 68, 0.2);
-  --radar-stroke: #1d6344;
+  color-scheme: light;
 }
 
+/* ─── Attune design tokens — cream / muted-blue palette ─────────────────── */
+
+@theme {
+  /* Primary – calm slate blue */
+  --color-primary-50:  #eef2f7;
+  --color-primary-100: #d5e1ee;
+  --color-primary-200: #adc3de;
+  --color-primary-300: #809fca;
+  --color-primary-400: #5b7fa6;
+  --color-primary-500: #4a6a8e;
+  --color-primary-600: #3d5876;
+  --color-primary-700: #334963;
+  --color-primary-800: #2c3e54;
+  --color-primary-900: #243348;
+  --color-primary:     #4a6a8e;
+
+  /* Secondary – dusty periwinkle (soft accent) */
+  --color-secondary-50:  #f0f1f8;
+  --color-secondary-100: #dde0f2;
+  --color-secondary-200: #bfc4e6;
+  --color-secondary-300: #98a1d6;
+  --color-secondary-400: #7681c4;
+  --color-secondary-500: #5f6ab4;
+  --color-secondary-600: #4f589c;
+  --color-secondary-700: #424980;
+  --color-secondary-800: #383e6a;
+  --color-secondary-900: #303558;
+  --color-secondary:     #5f6ab4;
+
+  /* Accent – soft sage (subtle, non-stimulating) */
+  --color-accent-50:  #f0f5f2;
+  --color-accent-100: #d9eae0;
+  --color-accent-200: #b5d5c4;
+  --color-accent-300: #88bba3;
+  --color-accent-400: #5f9e82;
+  --color-accent-500: #3f8265;
+  --color-accent-600: #316950;
+  --color-accent-700: #285442;
+  --color-accent-800: #214437;
+  --color-accent-900: #1c382d;
+  --color-accent:     #3f8265;
+
+  /* Surfaces — warm cream */
+  --color-background: #f5f1ea;
+  --color-surface:    #fafaf7;
+  --color-muted:      #ede8df;
+  --color-border:     #d9d3c7;
+
+  /* Text — muted blue scale */
+  --color-foreground:       #3a5268;
+  --color-muted-foreground: #6b85a0;
+  --color-faint-foreground: #9bafc5;
+
+  /* Semantic */
+  --color-success: #3f8265;
+  --color-warning: #8b7355;
+  --color-error:   #8b4a4a;
+  --color-info:    #4a6a8e;
+}
+
+/* ─── Dynamic font references ───────────────────────────────────────────── */
+
 @theme inline {
-  --color-bg: var(--bg);
-  --color-bg-card: var(--bg-card);
-  --color-ink: var(--ink);
-  --color-ink-muted: var(--ink-muted);
-  --color-ink-faint: var(--ink-faint);
-  --color-border: var(--border);
-  --color-green: var(--green);
-  --color-green-light: var(--green-light);
-  --color-green-dark: var(--green-dark);
-  --color-red: var(--red);
-  --color-red-light: var(--red-light);
-  --color-amber: var(--amber);
-  --color-amber-light: var(--amber-light);
-  --color-blue: var(--blue);
-  --color-blue-light: var(--blue-light);
-  --color-violet: var(--violet);
-  --color-violet-light: var(--violet-light);
-  --color-foggy: var(--foggy);
-  --color-focused: var(--focused);
-  --color-wired: var(--wired);
-  --font-sans: var(--font-ibm-plex-sans);
-  --font-serif: var(--font-playfair-display);
-  --font-mono: var(--font-ibm-plex-mono);
+  --font-sans:  var(--font-ibm-plex-sans);
+  --font-serif: var(--font-playfair);
+  --font-mono:  var(--font-ibm-plex-mono);
+}
+
+/* ─── Base styles — override Tailwind's dark-mode preflight ─────────────── */
+
+html {
+  background-color: #f5f1ea;
+  color: #3a5268;
 }
 
 body {
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Typewriter animation (for intervention acknowledgment) */
-@keyframes typewriter {
-  from { width: 0; }
-  to { width: 100%; }
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif), Georgia, serif;
+  color: var(--color-foreground);
 }
 
-@keyframes blink-caret {
-  50% { border-color: transparent; }
-}
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
 
-.typewriter {
-  overflow: hidden;
-  white-space: nowrap;
-  border-right: 2px solid var(--green);
-  animation: typewriter 1.5s steps(60) forwards, blink-caret 0.75s step-end infinite;
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-muted); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
 }
-
-/* Pulse animation for StuckButton */
-@keyframes pulse-red {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(184, 59, 16, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(184, 59, 16, 0); }
-}
-
-.pulse-red {
-  animation: pulse-red 2s ease-in-out infinite;
-}
-
-/* Fade in animation */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
-}
-
-/* Stagger delay utilities */
-.delay-100 { animation-delay: 100ms; }
-.delay-200 { animation-delay: 200ms; }
-.delay-300 { animation-delay: 300ms; }
-.delay-400 { animation-delay: 400ms; }
-.delay-500 { animation-delay: 500ms; }
-.delay-600 { animation-delay: 600ms; }
-.delay-700 { animation-delay: 700ms; }
-.delay-800 { animation-delay: 800ms; }
-.delay-1000 { animation-delay: 1000ms; }
-.delay-1500 { animation-delay: 1500ms; }
-
-/* Count-up number animation */
-@keyframes countUp {
-  from { opacity: 0; transform: scale(0.5); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.count-up {
-  animation: countUp 0.6s ease-out forwards;
-}
+::-webkit-scrollbar-thumb:hover { background: var(--color-faint-foreground); }
