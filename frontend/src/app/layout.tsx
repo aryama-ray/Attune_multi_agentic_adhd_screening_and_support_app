@@ -49,6 +49,9 @@ export default function RootLayout({
         <UserProvider>
           <Navbar />
           <main>{children}</main>
+          <footer className="border-t border-border py-4 text-center text-xs text-faint-foreground">
+            © {new Date().getFullYear()} Attune. All rights reserved.
+          </footer>
         </UserProvider>
       </body>
     </html>

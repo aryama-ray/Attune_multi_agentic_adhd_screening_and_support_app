@@ -16,10 +16,11 @@ export default function GuestLoginButton({ className, children }: GuestLoginButt
   function handleClick() {
     if (!user) {
       loginAsGuest();
-      // New guest always has hasProfile: false
-      router.push("/screening");
+      router.push("/consent");
       return;
     }
+    // Returning user: skip consent if already given
+    if (!user.hasConsented) { router.push("/consent"); return; }
     router.push(user.hasProfile ? "/plan" : "/screening");
   }
 

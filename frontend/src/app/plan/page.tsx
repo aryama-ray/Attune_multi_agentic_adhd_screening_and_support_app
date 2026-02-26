@@ -4,14 +4,23 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
 import PageContainer from "@/components/layout/PageContainer";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 export default function PlanPage() {
-  const { user } = useUser();
+  const { user, isLoading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (user === null) router.replace("/");
-  }, [user, router]);
+    if (!isLoading && user === null) router.replace("/");
+  }, [isLoading, user, router]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   if (!user) return null;
 

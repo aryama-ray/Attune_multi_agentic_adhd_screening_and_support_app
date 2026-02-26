@@ -5,6 +5,8 @@ export const APP_DESCRIPTION =
 
 export const STORAGE_KEYS = {
   USER: "attune_user",
+  ACCOUNTS: "attune_accounts",
+  TREND: "attune_trend",     // real per-day data points, keyed by userId
 } as const;
 
 export const API_TIMEOUT = 30000;
@@ -13,5 +15,6 @@ export const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/screening", label: "Get Started" },
   { href: "/plan", label: "My Plan" },
+  { href: "/dashboard", label: "Dashboard" },
 ] as const;
 
