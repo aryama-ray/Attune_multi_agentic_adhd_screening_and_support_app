@@ -23,6 +23,9 @@ export default function Navbar() {
         {/* Nav links */}
         <ul className="hidden items-center gap-1 sm:flex">
           {NAV_LINKS.map(({ href, label }) => {
+            // Hide authenticated-only links when not logged in
+            const authOnly = ["/plan", "/dashboard", "/profile"];
+            if (authOnly.includes(href) && !user) return null;
             const isActive = pathname === href;
             return (
               <li key={href}>

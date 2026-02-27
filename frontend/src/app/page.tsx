@@ -40,19 +40,26 @@ export default function HomePage() {
           {APP_DESCRIPTION}
         </p>
 
-        {/* CTAs */}
+        {/* Primary CTAs */}
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
-            href="/signup"
+            href="/signin"
             className="inline-flex h-11 items-center rounded-md bg-primary px-7 text-sm font-medium text-white transition-colors hover:bg-primary-600"
           >
-            Sign Up
+            Sign In
           </Link>
           <GuestLoginButton />
         </div>
 
-        <p className="mt-4 text-xs text-faint-foreground">
-          No account needed to explore — guest progress is saved locally.
+        {/* Secondary CTA */}
+        <p className="mt-5 text-sm text-muted-foreground">
+          New to Attune?{" "}
+          <Link
+            href="/signup"
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Sign up
+          </Link>
         </p>
       </section>
 
