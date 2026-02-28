@@ -32,11 +32,60 @@ interface UserContextValue {
 
 const UserContext = createContext<UserContextValue | undefined>(undefined);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Per-user persistent flags ────────────────────────────────────────────────
+// Stored under attune_flags_<userId> — survives logout and session expiry.
+
+interface UserFlags {
+  hasConsented: boolean;
+  hasBackground: boolean;
+  hasProfile: boolean;
+  background?: UserBackground;
+}
+
+function flagsKey(userId: string) {
+  return `attune_flags_${userId}`;
+}
+
+function loadFlags(userId: string): UserFlags {
+  try {
+    const raw = localStorage.getItem(flagsKey(userId));
+    if (raw) return JSON.parse(raw) as UserFlags;
+  } catch { /* ignore */ }
+  return { hasConsented: false, hasBackground: false, hasProfile: false };
+}
+
+function saveFlags(user: User) {
+  try {
+    const flags: UserFlags = {
+      hasConsented: user.hasConsented,
+      hasBackground: user.hasBackground,
+      hasProfile: user.hasProfile,
+      background: user.background,
+    };
+    localStorage.setItem(flagsKey(user.id), JSON.stringify(flags));
+  } catch { /* ignore */ }
+}
+
+// ─── Session-level storage (cleared on logout / session expiry) ───────────────
 
 function persistUser(user: User) {
   localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+  saveFlags(user); // always keep per-user flags in sync
 }
+
+/**
+ * Read the current session user from localStorage and snapshot their flags to
+ * the per-user key BEFORE the session key is cleared. This ensures flags
+ * survive logout and Supabase session invalidation.
+ */
+function snapshotFlagsFromSession() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.USER);
+    if (raw) saveFlags(JSON.parse(raw) as User);
+  } catch { /* ignore */ }
+}
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -46,59 +95,46 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function restoreSession() {
       try {
-        // Check Supabase session first
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session?.user) {
-          // Valid Supabase session — restore user from localStorage
-          const stored = localStorage.getItem(STORAGE_KEYS.USER);
-          if (stored) {
-            const parsed = JSON.parse(stored) as User;
+          // Try localStorage first (fastest path — already has flags)
+          const raw = localStorage.getItem(STORAGE_KEYS.USER);
+          if (raw) {
+            const parsed = JSON.parse(raw) as User;
             if (parsed.id === session.user.id) {
               setUser(parsed);
-            } else {
-              // ID mismatch — rebuild from session
-              const rebuilt: User = {
-                id: session.user.id,
-                name: session.user.user_metadata?.name ?? "User",
-                email: session.user.email,
-                isGuest: session.user.is_anonymous ?? false,
-                hasConsented: false,
-                hasBackground: false,
-                hasProfile: false,
-                createdAt: session.user.created_at,
-              };
-              setUser(rebuilt);
-              persistUser(rebuilt);
+              return;
             }
-          } else {
-            // No localStorage but valid session
-            const rebuilt: User = {
-              id: session.user.id,
-              name: session.user.user_metadata?.name ?? "User",
-              email: session.user.email,
-              isGuest: session.user.is_anonymous ?? false,
-              hasConsented: false,
-              hasBackground: false,
-              hasProfile: false,
-              createdAt: session.user.created_at,
-            };
-            setUser(rebuilt);
-            persistUser(rebuilt);
           }
+          // Fallback: rebuild from session + per-user flags
+          const flags = loadFlags(session.user.id);
+          const hasProfile = flags.hasProfile;
+          const hasBackground = flags.hasBackground || hasProfile;
+          const rebuilt: User = {
+            id: session.user.id,
+            name: session.user.user_metadata?.name ?? "User",
+            email: session.user.email,
+            isGuest: session.user.is_anonymous ?? false,
+            hasConsented: flags.hasConsented || hasBackground,
+            hasBackground,
+            hasProfile,
+            background: flags.background,
+            createdAt: session.user.created_at,
+          };
+          setUser(rebuilt);
+          persistUser(rebuilt);
         } else {
           // No Supabase session — fall back to localStorage (offline/demo)
-          const stored = localStorage.getItem(STORAGE_KEYS.USER);
-          if (stored) setUser(JSON.parse(stored) as User);
+          const raw = localStorage.getItem(STORAGE_KEYS.USER);
+          if (raw) setUser(JSON.parse(raw) as User);
         }
       } catch {
         // Supabase unavailable — fall back to localStorage
         try {
-          const stored = localStorage.getItem(STORAGE_KEYS.USER);
-          if (stored) setUser(JSON.parse(stored) as User);
-        } catch {
-          // ignore malformed data
-        }
+          const raw = localStorage.getItem(STORAGE_KEYS.USER);
+          if (raw) setUser(JSON.parse(raw) as User);
+        } catch { /* ignore malformed data */ }
       } finally {
         setIsLoading(false);
       }
@@ -106,10 +142,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     restoreSession();
 
-    // Listen for auth state changes (token refresh, sign out from another tab)
+    // When session is invalidated (token refresh failure, sign-out from another tab):
+    // snapshot flags BEFORE clearing the session key so they survive.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (!session) {
+          snapshotFlagsFromSession();
           setUser(null);
           localStorage.removeItem(STORAGE_KEYS.USER);
         }
@@ -119,7 +157,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // ─── Register via Supabase Auth ───────────────────────────────────────────
+  // ─── Register ─────────────────────────────────────────────────────────────
 
   const register = useCallback(
     async (name: string, email: string, password: string): Promise<void> => {
@@ -152,7 +190,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  // ─── Login via Supabase Auth ──────────────────────────────────────────────
+  // ─── Login ────────────────────────────────────────────────────────────────
 
   const login = useCallback(
     async (
@@ -171,14 +209,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
           return "not_found";
         }
 
+        // Restore onboarding progress from per-user flags (survives logout)
+        const flags = loadFlags(data.user.id);
+
+        // If they have a profile they definitely did the background form too
+        const hasProfile = flags.hasProfile;
+        const hasBackground = flags.hasBackground || hasProfile;
+
         const userData: User = {
           id: data.user.id,
           name: data.user.user_metadata?.name ?? "User",
           email: data.user.email,
           isGuest: false,
-          hasConsented: true,
-          hasBackground: false,
-          hasProfile: false,
+          hasConsented: true, // registered users have always accepted terms
+          hasBackground,
+          hasProfile,
+          background: flags.background,
           createdAt: data.user.created_at,
         };
 
@@ -192,17 +238,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  // ─── Guest login: Supabase anonymous auth + backend seed ──────────────────
+  // ─── Guest login ──────────────────────────────────────────────────────────
 
   const loginAsGuest = useCallback(async () => {
     setIsLoading(true);
     try {
-      // 1. Create anonymous Supabase Auth session
       const { data: authData, error: authError } =
         await supabase.auth.signInAnonymously();
 
       if (authError || !authData.user) {
-        // Supabase unavailable — fall back to local-only guest
+        // Supabase unavailable — local-only guest (offline mode)
         const guest: User = {
           id: crypto.randomUUID(),
           name: "Guest",
@@ -217,7 +262,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // 2. Call backend to seed Alex demo data (JWT attached via api.ts interceptor)
+      // Call backend to seed Alex demo data
       let guestData;
       try {
         guestData = await createGuestSession();
@@ -225,13 +270,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
         guestData = null;
       }
 
+      const userId = guestData?.userId ?? authData.user.id;
+
+      // Restore onboarding progress from per-user flags (survives logout)
+      const flags = loadFlags(userId);
+      const hasProfile = guestData?.hasProfile ?? flags.hasProfile;
+      const hasBackground = flags.hasBackground || hasProfile;
+
       const guest: User = {
-        id: guestData?.userId ?? authData.user.id,
+        id: userId,
         name: guestData?.name ?? "Alex",
         isGuest: true,
-        hasConsented: false,
-        hasBackground: false,
-        hasProfile: guestData?.hasProfile ?? false,
+        hasConsented: flags.hasConsented || hasBackground, // bg implies consent
+        hasBackground,
+        hasProfile,
+        background: flags.background,
         createdAt: new Date().toISOString(),
       };
 
@@ -245,20 +298,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // ─── Logout ───────────────────────────────────────────────────────────────
 
   const logout = useCallback(() => {
-    supabase.auth.signOut().catch(() => {
-      // best-effort sign out
-    });
+    // Snapshot flags before clearing the session key
+    snapshotFlagsFromSession();
+    supabase.auth.signOut().catch(() => { /* best-effort */ });
     setUser(null);
     localStorage.removeItem(STORAGE_KEYS.USER);
+    // per-user flags key is kept — restored on next login
   }, []);
 
-  // ─── Local state updates (consent, background, etc.) ─────────────────────
+  // ─── Local state mutations ────────────────────────────────────────────────
 
   function updateAndPersist(updater: (u: User) => User) {
     setUser((prev) => {
       if (!prev) return prev;
       const updated = updater(prev);
-      persistUser(updated);
+      persistUser(updated); // also calls saveFlags
       return updated;
     });
   }
@@ -285,8 +339,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           feeling.moodLevel +
           feeling.calmLevel) /
         4;
-      const moodScore = Math.round(avg * 2);
-      saveTodayPoint(user.id, moodScore);
+      saveTodayPoint(user.id, Math.round(avg * 2));
     }
   }
 

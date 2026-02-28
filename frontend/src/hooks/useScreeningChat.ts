@@ -127,10 +127,32 @@ export function useScreeningChat(): UseScreeningChatReturn {
 
         let evalResult: ScreeningResult;
         try {
-          const res = await api.post<ScreeningResult>("/api/screening/evaluate", {
-            answers: newAnswers,
+          // Backend expects { answers: [{ questionIndex: int, questionText, score }] }
+          // Map "q1" → 0, "q2" → 1, etc.
+          const backendAnswers = newAnswers.map((a) => ({
+            questionIndex: parseInt(a.questionId.replace("q", ""), 10) - 1,
+            questionText: a.questionText,
+            score: a.score,
+          }));
+          const res = await api.post("/api/screening/evaluate", {
+            answers: backendAnswers,
           });
-          evalResult = res.data;
+          // Backend returns { profileId, dimensions: RadarDimension[], profileTags, summary, ... }
+          // Transform to frontend ScreeningResult shape
+          const raw = res.data;
+          const dimRecord: Record<string, number> = {};
+          if (Array.isArray(raw.dimensions)) {
+            for (const d of raw.dimensions as { label: string; value: number }[]) {
+              dimRecord[d.label] = d.value;
+            }
+          } else if (raw.dimensions && typeof raw.dimensions === "object") {
+            Object.assign(dimRecord, raw.dimensions);
+          }
+          evalResult = {
+            dimensions: dimRecord,
+            tags: raw.profileTags ?? raw.tags ?? [],
+            summary: raw.summary ?? "",
+          };
         } catch {
           // Backend not available — compute client-side
           evalResult = computeLocally(newAnswers);

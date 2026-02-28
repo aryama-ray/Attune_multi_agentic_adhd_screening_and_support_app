@@ -24,7 +24,7 @@ export default function Navbar() {
         <ul className="hidden items-center gap-1 sm:flex">
           {NAV_LINKS.map(({ href, label }) => {
             // Hide authenticated-only links when not logged in
-            const authOnly = ["/plan", "/dashboard", "/profile", "/settings"];
+            const authOnly = ["/plan", "/dashboard", "/profile"];
             if (authOnly.includes(href) && !user) return null;
             const isActive = pathname === href;
             return (
@@ -60,14 +60,7 @@ export default function Navbar() {
               Sign out
             </button>
           </div>
-        ) : (
-          <Link
-            href="/screening"
-            className="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
-          >
-            Get Started
-          </Link>
-        )}
+        ) : null}
       </nav>
     </header>
   );

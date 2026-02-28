@@ -20,7 +20,9 @@ export default function SignUpPage() {
   // Already logged in as registered user → skip signup
   useEffect(() => {
     if (!user || user.isGuest) return;
-    router.replace(user.hasConsented ? "/screening" : "/consent");
+    if (!user.hasConsented) { router.replace("/consent"); return; }
+    if (!user.hasBackground) { router.replace("/background"); return; }
+    router.replace(user.hasProfile ? "/plan" : "/screening");
   }, [user, router]);
 
   async function handleSubmit(e: React.FormEvent) {

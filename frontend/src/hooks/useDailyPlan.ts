@@ -249,12 +249,32 @@ export function useDailyPlan(): UseDailyPlanReturn {
       const planStart = Date.now();
 
       try {
-        const res = await api.post<PlanResponse>("/api/plan/generate", {
+        // Backend expects { brainState: string, tasks?: string[] }
+        const res = await api.post("/api/plan/generate", {
           brainState: toBackendBrainState(brainState),
-          userTasks,
-          profile: user?.background ?? null,
+          tasks: userTasks.map((t) => `${t.title} [${t.category}]`),
         });
-        setPlan(res.data);
+        // Backend returns Task objects with duration_minutes/category/index
+        // Map to frontend PlanTask shape
+        const raw = res.data;
+        const mapped: PlanResponse = {
+          planId: raw.planId,
+          rationale: raw.overallRationale ?? raw.rationale,
+          createdAt: new Date().toISOString(),
+          tasks: (raw.tasks as Array<{
+            index: number; title: string; description?: string;
+            duration_minutes?: number; duration?: number;
+            category?: string; type?: string; status?: string;
+          }>).map((t) => ({
+            id: t.index !== undefined ? String(t.index) : uid(),
+            title: t.title,
+            description: t.description,
+            duration: t.duration_minutes ?? t.duration,
+            type: (t.category ?? t.type ?? "routine") as TaskType,
+            completed: false,
+          })),
+        };
+        setPlan(mapped);
         trackAnalyticsEvent(
           "plan_generated",
           { brainState: toBackendBrainState(brainState), taskCount: userTasks.length },
@@ -289,12 +309,29 @@ export function useDailyPlan(): UseDailyPlanReturn {
       });
 
       try {
-        const res = await api.post<InterventionResponse>("/api/plan/intervene", {
+        const res = await api.post("/api/plan/intervene", {
           planId: plan.planId,
           stuckTaskIndex: taskIndex,
           userMessage: message,
         });
-        const result = res.data;
+        const raw = res.data;
+        // Map backend InterventionResponse to frontend shape
+        const result: InterventionResponse = {
+          acknowledgment: raw.acknowledgment ?? "",
+          suggestion: raw.followupHint ?? raw.suggestion,
+          restructuredTasks: (raw.restructuredTasks as Array<{
+            index: number; title: string; description?: string;
+            duration_minutes?: number; duration?: number;
+            category?: string; type?: string;
+          }> ?? []).map((t) => ({
+            id: t.index !== undefined ? String(t.index) : uid(),
+            title: t.title,
+            description: t.description,
+            duration: t.duration_minutes ?? t.duration,
+            type: (t.category ?? t.type ?? "routine") as TaskType,
+            completed: false,
+          })),
+        };
         setIntervention(result);
         setPlan((p) =>
           p ? { ...p, tasks: [...p.tasks.slice(0, taskIndex), ...result.restructuredTasks] } : p

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.routes import auth, screening, profile, plan, dashboard, user, feedback, analytics
 from app.routes.websocket import router as ws_router
+from app.routes import cognitive_tests
 
 settings = get_settings()
 
@@ -33,6 +34,7 @@ app.include_router(user.router, prefix="/api/user", tags=["user"])
 app.include_router(feedback.router, prefix="/api/feedback", tags=["feedback"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 app.include_router(ws_router, tags=["websocket"])
+app.include_router(cognitive_tests.router, prefix="/api/tests", tags=["cognitive_tests"])
 
 
 @app.get("/")

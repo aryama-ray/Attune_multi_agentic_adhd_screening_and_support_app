@@ -146,6 +146,28 @@ export async function submitInterventionFeedback(
   return data;
 }
 
+// ── Cognitive Tests ──
+
+export async function saveTestResult(payload: {
+  userId: string;
+  testType: string;
+  score: number;
+  rawData: Record<string, unknown>;
+  metrics: Record<string, unknown>;
+  label: string;
+  interpretation: string;
+}): Promise<{ testId: string }> {
+  const { data } = await api.post("/api/tests/save", payload);
+  return data;
+}
+
+export async function fetchTestResults(
+  userId: string,
+): Promise<{ tests: import("@/types").CognitiveTestResult[] }> {
+  const { data } = await api.get(`/api/tests/${userId}`);
+  return data;
+}
+
 // ── Analytics ──
 
 export function trackAnalyticsEvent(

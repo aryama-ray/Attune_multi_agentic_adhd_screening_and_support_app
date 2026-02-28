@@ -227,3 +227,25 @@ CREATE INDEX IF NOT EXISTS idx_analytics_type ON analytics_events(event_type);
 ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Own events only" ON analytics_events
   FOR ALL USING (auth.uid() = user_id);
+
+-- ============================================================
+-- COGNITIVE TESTS (Time Perception + Reaction Time + ASRS)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS cognitive_tests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  test_type TEXT NOT NULL CHECK (test_type IN ('asrs', 'time_perception', 'reaction_time')),
+  score INTEGER NOT NULL CHECK (score BETWEEN 0 AND 100),
+  raw_data JSONB NOT NULL DEFAULT '{}',
+  metrics JSONB NOT NULL DEFAULT '{}',
+  label TEXT NOT NULL,
+  interpretation TEXT NOT NULL,
+  completed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cognitive_tests_user ON cognitive_tests(user_id);
+CREATE INDEX IF NOT EXISTS idx_cognitive_tests_type ON cognitive_tests(test_type);
+
+ALTER TABLE cognitive_tests ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Own tests only" ON cognitive_tests
+  FOR ALL USING (auth.uid() = user_id);

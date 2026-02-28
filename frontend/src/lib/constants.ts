@@ -15,18 +15,16 @@ export const API_TIMEOUT = 30000;
 export const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/profile", label: "My Profile" },
-  { href: "/screening", label: "Get Started" },
   { href: "/plan", label: "My Plan" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/settings", label: "Settings" },
 ] as const;
 
 // ─── Brain States (plan feature) ────────────────────────────────────────────
 
-import type { BrainState } from "@/types";
+import type { BackendBrainState } from "@/types";
 
 export const BRAIN_STATES: Record<
-  BrainState,
+  BackendBrainState,
   {
     label: string;
     description: string;

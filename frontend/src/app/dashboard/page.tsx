@@ -6,12 +6,15 @@ import Link from "next/link";
 import { useUser } from "@/hooks/useUser";
 import { useDashboard } from "@/hooks/useDashboard";
 import { readLatestScreening } from "@/lib/screeningStore";
+import { readLocalTestResults } from "@/lib/cognitiveTestStore";
+import { fetchTestResults } from "@/lib/api";
 import PageContainer from "@/components/layout/PageContainer";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import MomentumScore from "@/components/dashboard/MomentumScore";
 import TrendChart from "@/components/dashboard/TrendChart";
 import HypothesisCard from "@/components/dashboard/HypothesisCard";
-import type { ScreeningRecord } from "@/types";
+import AssessmentScoreCard from "@/components/dashboard/AssessmentScoreCard";
+import type { ScreeningRecord, CognitiveTestResult } from "@/types";
 
 function scoreColor(score: number) {
   if (score >= 70) return "bg-red-400";
@@ -39,13 +42,37 @@ export default function DashboardPage() {
   const { user, isLoading: userLoading } = useUser();
   const router = useRouter();
   const [latestScreening, setLatestScreening] = useState<ScreeningRecord | null>(null);
+  const [testResults, setTestResults] = useState<CognitiveTestResult[]>([]);
 
   useEffect(() => {
     if (!userLoading && user === null) router.replace("/");
   }, [userLoading, user, router]);
 
   useEffect(() => {
-    if (user) setLatestScreening(readLatestScreening(user.id));
+    if (!user) return;
+    setLatestScreening(readLatestScreening(user.id));
+
+    // Load test results: localStorage first (instant), then try backend
+    const local = readLocalTestResults(user.id);
+    if (local.length > 0) setTestResults(local);
+
+    fetchTestResults(user.id)
+      .then((res) => {
+        if (res.tests.length > 0) {
+          // Map backend snake_case to camelCase
+          const mapped: CognitiveTestResult[] = res.tests.map((t) => ({
+            id: t.id,
+            testType: t.testType,
+            score: t.score,
+            label: t.label,
+            interpretation: t.interpretation,
+            metrics: t.metrics,
+            completedAt: t.completedAt,
+          }));
+          setTestResults(mapped);
+        }
+      })
+      .catch(() => { /* keep local results */ });
   }, [user]);
 
   const { data, isLoading: dashLoading, feedbackHistory } = useDashboard(user?.id ?? null);
@@ -191,6 +218,9 @@ export default function DashboardPage() {
               <HypothesisCard key={h.id} hypothesis={h} />
             ))
           )}
+
+          {/* Assessment Score Card */}
+          <AssessmentScoreCard tests={testResults} />
 
           {/* Intervention Feedback History */}
           <p className="mt-4 text-xs font-medium uppercase tracking-widest text-faint-foreground">

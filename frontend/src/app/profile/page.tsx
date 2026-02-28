@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
 import { readLatestScreening } from "@/lib/screeningStore";
+import { exportUserData, deleteUserData } from "@/lib/api";
 import PageContainer from "@/components/layout/PageContainer";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import Button from "@/components/ui/Button";
 import type { ScreeningRecord, Gender, AgeRange, Ethnicity } from "@/types";
 import { ANSWER_OPTIONS } from "@/lib/screeningData";
 
@@ -385,6 +387,94 @@ function BackgroundSection() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function DataSection() {
+  const { user, logout } = useUser();
+  const router = useRouter();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function handleExport() {
+    if (!user) return;
+    setIsExporting(true);
+    setMessage(null);
+    try {
+      const data = await exportUserData(user.id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `attune-data-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setMessage("Data exported successfully.");
+    } catch {
+      setMessage("Failed to export data. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!user) return;
+    setIsDeleting(true);
+    setMessage(null);
+    try {
+      await deleteUserData(user.id);
+      logout();
+      router.replace("/");
+    } catch {
+      setMessage("Failed to delete data. Please try again.");
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="font-serif text-2xl font-bold text-foreground">Your Data</h2>
+      <div className="rounded-2xl border border-border bg-surface p-6">
+        <p className="text-sm text-muted-foreground">
+          Attune stores your screening results, daily plans, and intervention history.
+          All data is encrypted at rest and only accessible to you.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Button variant="outline" size="sm" onClick={handleExport} isLoading={isExporting}>
+            Export My Data
+          </Button>
+          <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)}>
+            Delete All My Data
+          </Button>
+        </div>
+        {message && <p className="mt-3 text-sm text-muted-foreground">{message}</p>}
+      </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-surface p-8 shadow-lg">
+            <h3 className="text-lg font-semibold text-error">Delete All Data?</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This will permanently delete your screening results, plans, interventions, and account.
+              This action cannot be undone.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+                Cancel
+              </Button>
+              <Button variant="danger" size="sm" onClick={handleDelete} isLoading={isDeleting}>
+                Yes, Delete Everything
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function ProfilePage() {
   const { user, isLoading } = useUser();
   const router = useRouter();
@@ -444,6 +534,9 @@ export default function ProfilePage() {
             <ScreeningPanel record={latestScreening} />
           )}
         </section>
+
+        {/* ── Data & Privacy ───────────────────────────────────────────────── */}
+        <DataSection />
       </div>
     </PageContainer>
   );

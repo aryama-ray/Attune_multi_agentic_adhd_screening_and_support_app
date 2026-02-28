@@ -193,6 +193,49 @@ export interface ScreeningRecord {
   answers: ScreeningAnswer[];
 }
 
+// ─── Cognitive Tests ─────────────────────────────────────────────────────────
+
+export interface TimeTrialResult {
+  trialIndex: number;
+  targetMs: number;
+  actualMs: number;
+  errorMs: number;
+  errorPct: number;
+}
+
+export interface ReactionTrialResult {
+  trialIndex: number;
+  reactionTimeMs: number;
+  isFalseStart: boolean;
+}
+
+export interface TimePerceptionMetrics {
+  meanErrorMs: number;
+  meanErrorPct: number;
+  stdDevMs: number;
+  bias: "overestimator" | "underestimator" | "accurate";
+  trials: TimeTrialResult[];
+}
+
+export interface ReactionTimeMetrics {
+  meanRtMs: number;
+  medianRtMs: number;
+  stdDevMs: number;
+  consistency: number;
+  falseStarts: number;
+  trials: ReactionTrialResult[];
+}
+
+export interface CognitiveTestResult {
+  id: string;
+  testType: "asrs" | "time_perception" | "reaction_time";
+  score: number;
+  label: string;
+  interpretation: string;
+  metrics: Record<string, unknown>;
+  completedAt: string;
+}
+
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 export interface ApiResponse<T = unknown> {
