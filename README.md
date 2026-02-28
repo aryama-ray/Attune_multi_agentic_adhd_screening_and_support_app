@@ -2,7 +2,8 @@
 
 **Attune** is a multi-agent AI system that screens for ADHD using the Harvard ASRS-6 scale, builds adaptive daily plans based on cognitive profiles, and autonomously intervenes when users get stuck — replacing the self-management that ADHD makes hardest.
 
-> Built for the AI Agents Hackathon 2026
+> Built for the AI Agents - February Week-long Hackathon
+
 
 ---
 
@@ -280,15 +281,13 @@ The guest login creates a pre-seeded demo user with 14 days of realistic history
 
 ---
 
-## Team
+## Team Attune
 
-| Member | Role | Focus |
-|--------|------|-------|
-| **Member A** | Frontend | Next.js, React, Tailwind, Recharts, UI/UX |
-| **Member B** | Backend | FastAPI, CrewAI, Claude API, Supabase, Agent Design |
+Debishree Ray, Data Scientist
+Aryama Ray, AI Consultant
 
 ---
 
 ## License
 
-Built for the AI Agents Hackathon 2026. MIT License.
+Built for the AI Agents - February Week-long Hackathon. MIT License.

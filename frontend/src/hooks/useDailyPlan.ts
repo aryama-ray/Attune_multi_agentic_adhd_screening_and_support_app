@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useUser } from "@/hooks/useUser";
 import api from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { trackAnalyticsEvent } from "@/lib/api";
 import type { BackendBrainState, BrainState, BrainStateLevel, PlanResponse, PlanTask, InterventionResponse, UserTask, TaskType } from "@/types";
 
@@ -66,6 +67,7 @@ function pickBreakDescription(index: number) {
 
 function buildSchedule(brainState: BrainState, userTasks: UserTask[]): PlanResponse {
   const focus = brainState.focusLevel;
+  const maxMinutes = brainState.timeWindowMinutes;
   const breakThreshold = BREAK_AFTER[focus];
   let breakCount = 0;
 
@@ -87,12 +89,21 @@ function buildSchedule(brainState: BrainState, userTasks: UserTask[]): PlanRespo
 
   const result: PlanTask[] = [];
   let minutesSinceBreak = 0;
+  let totalMinutes = 0;
+  let droppedCount = 0;
 
   for (const task of ordered) {
     const duration = TASK_DURATIONS[task.category][focus];
+    const breakDuration = minutesSinceBreak >= breakThreshold ? TASK_DURATIONS["break"][focus] : 0;
+
+    // Respect time window: stop adding tasks if they won't fit
+    if (totalMinutes + breakDuration + duration > maxMinutes) {
+      droppedCount++;
+      continue;
+    }
 
     // Insert a break if we've hit the threshold
-    if (minutesSinceBreak >= breakThreshold) {
+    if (breakDuration > 0) {
       result.push({
         id: uid(),
         title: "Break",
@@ -101,6 +112,7 @@ function buildSchedule(brainState: BrainState, userTasks: UserTask[]): PlanRespo
         type: "break",
         completed: false,
       });
+      totalMinutes += breakDuration;
       minutesSinceBreak = 0;
     }
 
@@ -112,33 +124,40 @@ function buildSchedule(brainState: BrainState, userTasks: UserTask[]): PlanRespo
       completed: false,
     });
 
+    totalMinutes += duration;
     minutesSinceBreak += duration;
   }
 
-  // Always close with a short wrap-up
-  result.push({
-    id: uid(),
-    title: "Wrap up & reflect",
-    description:
-      "Note what you finished, what's carrying over, and the one thing you're proud of today.",
-    duration: 10,
-    type: "routine",
-    completed: false,
-  });
+  // Always close with a short wrap-up if there's room
+  if (totalMinutes + 10 <= maxMinutes) {
+    result.push({
+      id: uid(),
+      title: "Wrap up & reflect",
+      description:
+        "Note what you finished, what's carrying over, and the one thing you're proud of today.",
+      duration: 10,
+      type: "routine",
+      completed: false,
+    });
+    totalMinutes += 10;
+  }
 
   // Build a meaningful rationale
   const deepCount  = userTasks.filter(t => t.category === "deep-work").length;
-  const totalMins  = result.reduce((s, t) => s + (t.duration ?? 0), 0);
-  const h = Math.floor(totalMins / 60);
-  const m = totalMins % 60;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
   const timeStr = h > 0 ? `${h}h ${m > 0 ? `${m}m` : ""}`.trim() : `${m}m`;
+  const windowH = Math.floor(maxMinutes / 60);
+  const windowM = maxMinutes % 60;
+  const windowStr = windowH > 0 ? `${windowH}h ${windowM > 0 ? `${windowM}m` : ""}`.trim() : `${windowM}m`;
+  const droppedNote = droppedCount > 0 ? ` ${droppedCount} task${droppedCount > 1 ? "s" : ""} didn't fit — prioritise and try again tomorrow.` : "";
 
   const rationale =
     focus === "high"
-      ? `Focus is high — deep work is scheduled first to hit your peak state. ${deepCount > 0 ? `${deepCount} deep-work block${deepCount > 1 ? "s" : ""} front-loaded. ` : ""}Breaks every ${breakThreshold} min. Total: ~${timeStr}.`
+      ? `Your ${windowStr} session is planned. Focus is high — deep work is scheduled first to hit your peak state. ${deepCount > 0 ? `${deepCount} deep-work block${deepCount > 1 ? "s" : ""} front-loaded. ` : ""}Breaks every ${breakThreshold} min. Total: ~${timeStr}.${droppedNote}`
       : focus === "medium"
-      ? `Moderate focus — starting with lighter tasks to warm up before deeper work. Breaks every ${breakThreshold} min. Total: ~${timeStr}.`
-      : `Focus is low today — gentle start with routine and admin, building up gradually. Plenty of breathing room. Total: ~${timeStr}.`;
+      ? `Your ${windowStr} session is planned. Moderate focus — starting with lighter tasks to warm up before deeper work. Breaks every ${breakThreshold} min. Total: ~${timeStr}.${droppedNote}`
+      : `Your ${windowStr} session is planned. Focus is low today — gentle start with routine and admin, building up gradually. Plenty of breathing room. Total: ~${timeStr}.${droppedNote}`;
 
   return {
     planId: uid(),
@@ -215,13 +234,17 @@ export function useDailyPlan(): UseDailyPlanReturn {
   const [error, setError] = useState<string | null>(null);
   const [progressMessage, setProgressMessage] = useState<string | null>(null);
 
-  // Helper: connect WebSocket for real-time agent progress
-  function connectProgressWs(): WebSocket | null {
+  // Helper: connect WebSocket for real-time agent progress (with JWT auth)
+  async function connectProgressWs(): Promise<WebSocket | null> {
     if (!user?.id) return null;
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return null;
+
       const wsUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000")
         .replace(/^http/, "ws");
-      const ws = new WebSocket(`${wsUrl}/ws/agent-progress/${user.id}`);
+      const ws = new WebSocket(`${wsUrl}/ws/agent-progress/${user.id}?token=${token}`);
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -245,7 +268,7 @@ export function useDailyPlan(): UseDailyPlanReturn {
       setIntervention(null);
       setProgressMessage("Connecting to AI agents...");
 
-      const ws = connectProgressWs();
+      const ws = await connectProgressWs();
       const planStart = Date.now();
 
       try {
@@ -253,11 +276,12 @@ export function useDailyPlan(): UseDailyPlanReturn {
           brainState: toBackendBrainState(brainState),
           userTasks,
           profile: user?.background ?? null,
+          timeWindowMinutes: brainState.timeWindowMinutes,
         });
         setPlan(res.data);
         trackAnalyticsEvent(
           "plan_generated",
-          { brainState: toBackendBrainState(brainState), taskCount: userTasks.length },
+          { brainState: toBackendBrainState(brainState), taskCount: userTasks.length, timeWindowMinutes: brainState.timeWindowMinutes },
           Date.now() - planStart,
         );
       } catch {
@@ -281,7 +305,7 @@ export function useDailyPlan(): UseDailyPlanReturn {
 
       const stuckTask = plan.tasks[taskIndex];
       const remainingTasks = plan.tasks.slice(taskIndex + 1);
-      const ws = connectProgressWs();
+      const ws = await connectProgressWs();
 
       trackAnalyticsEvent("intervention_triggered", {
         stuckTaskIndex: taskIndex,

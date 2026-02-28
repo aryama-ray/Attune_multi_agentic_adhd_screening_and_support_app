@@ -1,6 +1,7 @@
 import json
 from crewai import Agent, Task, Crew, Process, LLM
 from app.agents.tools.db_tools import get_user_history, save_hypothesis_card
+from app.models import PatternOutput
 
 _llm = LLM(model="anthropic/claude-sonnet-4-20250514")
 
@@ -53,7 +54,7 @@ def run_pattern_detection(user_id: str) -> dict:
             "  - prediction: Testable prediction for future behavior\n"
             "  - confidence: 'low' | 'medium' | 'high' (based on evidence strength)\n"
             "  - supportingEvidence: Array of {day: number, detail: string}\n"
-            "  - status: 'testing' (always 'testing' for new hypotheses)\n"
+            "  - status: 'active' (always 'active' for new hypotheses)\n"
             f"Step 4: Use save_hypothesis_card tool with user_id={user_id} to save "
             "each hypothesis card.\n"
             "Step 5: Return a JSON array of all generated cards.\n\n"
@@ -65,6 +66,7 @@ def run_pattern_detection(user_id: str) -> dict:
             "A JSON array of hypothesis cards, each with patternDetected, prediction, "
             "confidence, supportingEvidence, and status fields. Empty array if insufficient data."
         ),
+        output_pydantic=PatternOutput,
         agent=pattern_agent,
     )
 
@@ -77,9 +79,14 @@ def run_pattern_detection(user_id: str) -> dict:
     )
 
     result = crew.kickoff()
+
+    # Try structured output first (Pydantic model)
+    if hasattr(result, "pydantic") and result.pydantic is not None:
+        return result.pydantic.model_dump()
+
+    # Fallback to raw JSON parsing
     raw = str(result.raw) if hasattr(result, "raw") else str(result)
 
-    # Try to parse as JSON array first, then object
     try:
         start_arr = raw.find("[")
         end_arr = raw.rfind("]") + 1

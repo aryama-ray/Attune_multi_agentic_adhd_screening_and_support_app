@@ -3146,3 +3146,318 @@ All existing endpoints (screening/evaluate, profile/{id}, plan/generate, plan/in
   NOW REQUIRE: Authorization: Bearer <token> header
   userId is extracted from JWT, not from request body
 ```
+
+---
+
+# PHASE 5 — Agent Architecture Fixes & New-User Demo
+
+> **Both people together.** Targeted bugfixes across the agent system, plus a new-user demo flow that proves the full pipeline works without pre-seeded Alex data.
+
+---
+
+## Why Phase 5 Exists
+
+Phases 1-4 built a functional demo around the seeded Alex guest account. An architecture review found **15 bugs** — data integrity issues that would cause INSERT failures, incorrect dashboard data, security gaps, and fragile agent output parsing. Phase 5 hardens the agent system so it works reliably for **any** user, including new signups with zero history.
+
+---
+
+## Bug Fixes (15 total, grouped by file)
+
+### `backend/app/models.py` (3 fixes)
+
+| # | Bug | Fix |
+|---|-----|-----|
+| 1 | `PlanRequest.brainState: str` accepts invalid values | Changed to `Literal["foggy", "focused", "wired"]` |
+| 2 | `ASRSAnswer.score: int` unconstrained | Added `Field(ge=0, le=4)` |
+| 3 | `HypothesisCard.status: str` accepts invalid values | Changed to `Literal["active", "confirmed", "disproved", "evolving"]` |
+
+Also added: `PatternOutput`, `PatternCard`, `PatternEvidence` Pydantic models for pattern agent structured output.
+
+### `backend/app/config.py` (1 fix)
+
+| # | Bug | Fix |
+|---|-----|-----|
+| 4 | Empty string `""` defaults on API keys mask missing `.env` | Removed defaults — app now fails fast on startup if credentials are missing |
+
+### `backend/app/agents/tools/db_tools.py` (3 fixes)
+
+| # | Bug | Fix |
+|---|-----|-----|
+| 5 | `save_daily_plan` doesn't deactivate old plans (all remain `is_active=True`) | Added `UPDATE is_active=False` before INSERT |
+| 6 | `save_hypothesis_card` defaults status to `"testing"` (violates schema CHECK) | Changed default to `"active"` |
+| 7 | `save_intervention` doesn't persist `followupHint` | Added `"followup_message": data.get("followupHint")` to INSERT |
+
+### `backend/app/services/seed_service.py` (1 fix, 4 occurrences)
+
+| # | Bug | Fix |
+|---|-----|-----|
+| 8 | Lines 199, 232, 253, 269 use hardcoded `ALEX_UUID` instead of `user_id` parameter | Replaced all 4 with `user_id` — interventions and hypothesis cards now seed under correct user |
+
+### `backend/app/agents/intervention_agent.py` (1 fix)
+
+| # | Bug | Fix |
+|---|-----|-----|
+| 9 | `allow_delegation=True` in single-agent crew (no agents to delegate to) | Changed to `allow_delegation=False` |
+
+### `backend/app/agents/pattern_agent.py` (2 fixes)
+
+| # | Bug | Fix |
+|---|-----|-----|
+| 10 | No `output_pydantic` — relies on fragile `raw.find("[")` parsing | Added `output_pydantic=PatternOutput`, try `result.pydantic` first with JSON fallback |
+| 11 | Task description tells agent to use `"testing"` status | Changed to `"active"` to match schema CHECK constraint |
+
+### `backend/app/routes/dashboard.py` (3 fixes)
+
+| # | Bug | Fix |
+|---|-----|-----|
+| 12 | Ascending order + `limit(14)` returns oldest 14 checkins | Changed to `desc=True` then `reverse()` — gets most recent 14 in chronological order |
+| 13 | `brainState` returns raw `energy_level` (`low/medium/high`) | Added `_ENERGY_TO_BRAIN` mapping → returns `foggy/focused/wired` |
+| 14 | Annotation day numbers hardcoded to 4 and 11 | Dynamic computation: matches intervention `created_at` date to checkin dates |
+
+### `backend/app/routes/websocket.py` (1 fix)
+
+| # | Bug | Fix |
+|---|-----|-----|
+| 15 | No JWT auth — anyone can connect to any user's WebSocket | Added `?token=` query parameter validation before `accept()` |
+
+### `frontend/src/hooks/useDailyPlan.ts` (companion fix)
+
+| Change | Detail |
+|--------|--------|
+| WebSocket JWT auth | `connectProgressWs()` now async, fetches Supabase session token, appends `?token=` to WS URL |
+| Import added | `import { supabase } from "@/lib/supabase"` |
+
+### Not Changed (by design)
+
+| Item | Rationale |
+|------|-----------|
+| `knowledge_sources` on planning/intervention agents | Works correctly with installed CrewAI version |
+| Orchestrator hierarchical process | Intentional fallback pattern — direct agent route is backup |
+
+---
+
+## New-User Demo Flow
+
+This flow proves the full pipeline works for a **brand new user** (not Alex).
+
+### Prerequisites
+```bash
+# Terminal 1: Backend
+cd backend && source venv/bin/activate && uvicorn main:app --reload --port 8000
+
+# Terminal 2: Frontend
+cd frontend && npm run dev
+```
+
+### Steps
+
+| # | Action | Expected Result | Verify |
+|---|--------|-----------------|--------|
+| 1 | Open `http://localhost:3000` | Landing page loads | Hero, stats, CTAs visible |
+| 2 | Click **"Create Account"** or **"Sign Up"** | Signup form appears | Email + password + name fields |
+| 3 | Enter email, password, name → submit | Supabase Auth creates user | `hasProfile: false` in response |
+| 4 | Auto-redirect to `/screening` | Screening page idle state | "Let's understand how your brain works" |
+| 5 | Click **"Begin Screening"** | Chat starts, Q1 appears | Phase = "questioning" |
+| 6 | Answer all 6 questions | 500ms delay between, auto-scroll | Agent + user bubble pairs |
+| 7 | Wait for evaluation | Typing dots → CrewAI screening agent runs | `POST /api/screening/evaluate` with JWT |
+| 8 | Radar chart appears | 6 dimensions animate with 200ms stagger | Values 0-100, empowering insights |
+| 9 | Profile tags fade in | 3 Badge components with stagger | Empowering tags |
+| 10 | Click **"Continue to Plan"** | Navigate to `/plan` | Brain state selector visible |
+| 11 | Select brain state (e.g. **"Focused"**) | Card highlights | Single card selected |
+| 12 | Click **"Generate My Plan"** | WebSocket progress → plan appears | Tasks with profile-referenced rationale |
+| 13 | Verify rationale | References **this user's** cognitive profile | Not generic — cites dimension scores |
+| 14 | Verify history handling | Agent notes "first plan" or "limited history" | Does NOT hallucinate fake history |
+| 15 | Click **"I'm Stuck"** | Red pill expands | Task picker + textarea |
+| 16 | Select task, type message, click **"Get Help"** | Intervention agent runs | Typewriter acknowledgment |
+| 17 | Restructured tasks fade in | 2s after acknowledgment | Smaller micro-steps |
+| 18 | Close intervention | Plan updated | New tasks in place |
+| 19 | Navigate to `/dashboard` | Dashboard loads | Minimal data (1 day) |
+| 20 | Verify sparse data handling | Momentum from 1 day, no hypothesis cards (< 7 days) | No crash |
+| 21 | Navigate to `/settings` | Settings page | Export + Delete buttons visible |
+
+### Error Scenarios for New Users
+
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Dashboard with 0 checkins | 404 "No dashboard data found" — frontend shows empty state |
+| Dashboard with 1-6 checkins | Trend chart with few points, no hypothesis generation triggered |
+| Pattern agent with < 7 days | Returns empty cards array, no crash |
+| Plan generation with no history | Agent rationale says "first session", does not hallucinate |
+
+---
+
+## Alex Guest Flow (Still Works)
+
+| # | Action | Expected |
+|---|--------|----------|
+| 1 | Click "Continue as Guest" | Alex created with 14-day seeded data |
+| 2 | Navigate to Dashboard | Momentum ~71, delta ~+23, 2 hypothesis cards, annotations at correct days |
+| 3 | Generate plan | Rationale cites Alex's real 14-day history |
+| 4 | Trigger intervention | Acknowledgment + restructured plan |
+
+---
+
+## Verification Checklist
+
+### Data Integrity
+- [ ] Invalid brain state (e.g. `"sleepy"`) in `PlanRequest` returns 422 (not 500)
+- [ ] Invalid ASRS score (e.g. `5`) returns 422 (not 500)
+- [ ] Only 1 active plan per user after generating multiple plans
+- [ ] Hypothesis card INSERT succeeds (status=`"active"`, not `"testing"`)
+- [ ] Intervention `followup_message` column populated in DB
+- [ ] Seed service creates ALL data (interventions + hypothesis cards) under correct user_id
+
+### Agent Quality
+- [ ] Intervention agent does not waste iterations trying to delegate
+- [ ] Pattern agent uses structured output (`result.pydantic`) as primary path
+- [ ] Planning agent knowledge base loads `executive_function_strategies.md` and `brain_state_research.md`
+- [ ] New user's plan rationale does NOT hallucinate history
+
+### Dashboard Accuracy
+- [ ] Annotation day numbers match actual intervention dates (not hardcoded 4/11)
+- [ ] `brainState` in trend data shows `foggy`/`focused`/`wired` (not `low`/`medium`/`high`)
+- [ ] With 20+ checkins, dashboard shows the most recent 14 (not oldest 14)
+
+### Security
+- [ ] WebSocket rejects connections without valid `?token=` parameter
+- [ ] WebSocket rejects tokens that don't match the `user_id` in the URL
+- [ ] App fails to start if `.env` is missing required keys (no silent empty-string fallback)
+
+### Backward Compatibility
+- [ ] Alex guest login still works end-to-end
+- [ ] All curl commands from Phase 1 Task B5 still work (with appropriate JWT)
+- [ ] Frontend demo flow (4-minute walkthrough) unchanged
+
+---
+
+## Files Modified in Phase 5
+
+| File | Changes |
+|------|---------|
+| `backend/app/models.py` | Literal constraints, Field validators, PatternOutput model |
+| `backend/app/config.py` | Removed empty string defaults |
+| `backend/app/agents/tools/db_tools.py` | Deactivate old plans, fix status default, save followupHint |
+| `backend/app/services/seed_service.py` | Replace ALEX_UUID with user_id (4 locations) |
+| `backend/app/agents/intervention_agent.py` | `allow_delegation=False` |
+| `backend/app/agents/pattern_agent.py` | `output_pydantic=PatternOutput`, fix status string |
+| `backend/app/routes/dashboard.py` | Checkin ordering, brainState mapping, dynamic annotations |
+| `backend/app/routes/websocket.py` | JWT auth via `?token=` query parameter |
+| `frontend/src/hooks/useDailyPlan.ts` | Async WebSocket with JWT token |
+
+---
+
+# PHASE 5.1 — Time Window Presets (Brain-State Paired)
+
+> **ADHD time-blindness guardrail.** Users select a preset session length that pairs with their brain state, so the planning agent generates plans that actually fit the time they have.
+
+---
+
+## Why This Exists
+
+Time estimation is a **core ADHD deficit**. Asking "how long can you work?" as a free-text field gets unreliable answers — someone wired might say "6 hours" but crash after 90 minutes. Preset time blocks paired with brain state act as guardrails:
+
+- Presets are calibrated to realistic capacities per brain state
+- Single-tap selection (not a text field) reduces friction
+- The planning agent treats the time window as a **hard constraint**
+
+---
+
+## Preset Table
+
+| Derived Brain State | Presets |
+|---|---|
+| **Foggy** (focus=low) | 30 min / 1 hr / 2 hr |
+| **Focused** (default) | 1 hr / 2 hr / 4 hr |
+| **Wired** (energy=high) | 45 min / 1.5 hr / 3 hr |
+
+Brain state derivation: `focus === "low" → foggy`, `energy === "high" → wired`, else `focused`.
+
+---
+
+## Updated Plan Page Flow
+
+```
+BrainStateForm
+  ├── Focus level (low / medium / high)
+  ├── Energy level (low / medium / high)
+  ├── Mood level (low / medium / high)
+  ├── Time window (presets appear after all 3 levels selected)  ← NEW
+  ├── Context (optional textarea)
+  └── "Next: Add Your Tasks" (disabled until time window selected)
+  ↓
+TaskInputForm (shows time budget pill alongside brain state recap)
+  ↓
+Generate → Agent respects time constraint
+```
+
+---
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/types/index.ts` | Added `timeWindowMinutes: number` to `BrainState` interface |
+| `frontend/src/app/plan/page.tsx` | Added `TIME_PRESETS` constant, time window pills UI in BrainStateForm, time budget pill in TaskInputForm, reset on brain state level change |
+| `frontend/src/hooks/useDailyPlan.ts` | Pass `timeWindowMinutes` to backend API + enforce in local `buildSchedule()` fallback (drops tasks that don't fit, mentions dropped count in rationale) |
+| `backend/app/models.py` | Added `timeWindowMinutes: Optional[int] = Field(None, ge=15, le=480)` to `PlanRequest` |
+| `backend/app/routes/plan.py` | Pass `request.timeWindowMinutes` to orchestrator and direct agent |
+| `backend/app/agents/planning_agent.py` | Added `time_window_minutes` param to `create_planning_task` and `run_planning`, injects TIME CONSTRAINT block into agent prompt with 20% ADHD buffer, updated `BRAIN_STATE_STRATEGIES` with time-aware guidance |
+| `backend/app/agents/orchestrator.py` | Added `time_window_minutes` param to `run_orchestrated_planning`, mentions window in manager task description |
+
+---
+
+## API Contract Update
+
+```
+POST /api/plan/generate
+  Request:  {
+    brainState: "foggy" | "focused" | "wired",
+    tasks?: string[],
+    timeWindowMinutes?: number  // 15-480, null = no constraint (backward compat)
+  }
+  Response: { planId, tasks[], overallRationale }
+```
+
+---
+
+## Agent Prompt Enhancement
+
+When `timeWindowMinutes` is provided, the planning agent receives:
+
+```
+TIME CONSTRAINT: The user has {N} minutes total for this session.
+Plan for ~{N*0.8} minutes of actual work + breaks (keeping 20% buffer for
+ADHD time estimation drift). Do NOT exceed {N} minutes total.
+If the user's tasks don't all fit, prioritize by importance and drop lower-priority items.
+Mention the time window in your overallRationale.
+```
+
+Brain state strategies also include time-aware guidance:
+- **Foggy + ≤60 min**: limit to 2-3 tasks max
+- **Focused**: deep work block should be ~40% of total time
+- **Wired**: aim for 15-min blocks even in longer windows
+
+---
+
+## Local Fallback Scheduler
+
+The `buildSchedule()` function in `useDailyPlan.ts` enforces the time window when backend is unavailable:
+- Tracks `totalMinutes` as tasks are added
+- Skips tasks that would exceed `maxMinutes`
+- Adds wrap-up only if room remains
+- Rationale mentions dropped task count: "2 tasks didn't fit — prioritise and try again tomorrow."
+
+---
+
+## Verification Checklist
+
+- [ ] All 3 brain state levels must be selected before time window pills appear
+- [ ] Time presets change dynamically when brain state levels change (e.g., switch focus from medium to low → presets switch from focused to foggy)
+- [ ] Selecting a time window then changing a brain state level resets the time window selection
+- [ ] "Next" button disabled until time window is selected
+- [ ] TaskInputForm shows time budget pill (e.g., "⏱ 2 hr") alongside brain state pills
+- [ ] Local scheduler respects time window (total task minutes ≤ selected window)
+- [ ] Backend accepts `timeWindowMinutes` in POST body and validates range (15-480)
+- [ ] Planning agent's `overallRationale` mentions the time window
+- [ ] Omitting `timeWindowMinutes` from API still works (backward compatibility)
+- [ ] Tasks that don't fit within the time window are dropped with explanation in rationale
