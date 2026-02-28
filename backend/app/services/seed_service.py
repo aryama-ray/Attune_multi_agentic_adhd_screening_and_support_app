@@ -196,7 +196,7 @@ def seed_demo_data(user_id: str = ALEX_UUID):
          "rationale": "Timeboxed to prevent perfectionism spiral", "priority": "medium", "status": "pending"},
     ]
     db.table("interventions").insert({
-        "user_id": ALEX_UUID,
+        "user_id": user_id,
         "plan_id": plan_ids[3],
         "trigger_type": "stuck_button",
         "stuck_task_index": 2,
@@ -229,7 +229,7 @@ def seed_demo_data(user_id: str = ALEX_UUID):
          "rationale": "Separate drafting from editing to reduce perfectionism", "priority": "medium", "status": "pending"},
     ]
     db.table("interventions").insert({
-        "user_id": ALEX_UUID,
+        "user_id": user_id,
         "plan_id": plan_ids[10],
         "trigger_type": "stuck_button",
         "stuck_task_index": 1,
@@ -250,7 +250,7 @@ def seed_demo_data(user_id: str = ALEX_UUID):
 
     # ── 5. Hypothesis Cards ──
     db.table("hypothesis_cards").insert({
-        "user_id": ALEX_UUID,
+        "user_id": user_id,
         "pattern_detected": "Low-energy days consistently follow 2+ consecutive high-output days",
         "prediction": (
             "If Alex has two consecutive days completing 5+ tasks with high energy, "
@@ -267,7 +267,7 @@ def seed_demo_data(user_id: str = ALEX_UUID):
     }).execute()
 
     db.table("hypothesis_cards").insert({
-        "user_id": ALEX_UUID,
+        "user_id": user_id,
         "pattern_detected": "Mood scores improve when first task of the day is completed within 30 minutes",
         "prediction": (
             "Starting with a small, completable task in the first 30 minutes correlates with "

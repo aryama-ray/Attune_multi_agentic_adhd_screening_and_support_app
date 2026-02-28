@@ -35,12 +35,12 @@ async def generate_plan(
     # Try orchestrated flow first, fall back to direct planning agent
     try:
         result = await _run_with_retry(
-            run_orchestrated_planning, user_id, request.brainState, request.tasks
+            run_orchestrated_planning, user_id, request.brainState, request.tasks, request.timeWindowMinutes
         )
     except Exception:
         logger.warning("Orchestrated planning failed, falling back to direct agent")
         result = await _run_with_retry(
-            run_planning, user_id, request.brainState, request.tasks
+            run_planning, user_id, request.brainState, request.tasks, request.timeWindowMinutes
         )
 
     if "error" in result:

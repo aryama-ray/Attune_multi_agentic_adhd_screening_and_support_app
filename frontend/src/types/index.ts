@@ -143,6 +143,7 @@ export interface BrainState {
   energyLevel: BrainStateLevel;
   moodLevel: BrainStateLevel;
   context?: string;
+  timeWindowMinutes: number; // total session length in minutes (preset from brain state)
 }
 
 export type TaskType = "deep-work" | "admin" | "break" | "social" | "routine";

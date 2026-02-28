@@ -34,7 +34,7 @@ manager_agent = Agent(
 
 
 def run_orchestrated_planning(
-    user_id: str, brain_state: str, user_tasks: list[str] | None = None
+    user_id: str, brain_state: str, user_tasks: list[str] | None = None, time_window_minutes: int | None = None
 ) -> dict:
     """
     Enhanced planning flow: manager analyzes context then delegates to planning agent.
@@ -42,7 +42,8 @@ def run_orchestrated_planning(
     """
     manager_task = Task(
         description=(
-            f"Coordinate plan generation for user {user_id} with brain state: {brain_state}.\n\n"
+            f"Coordinate plan generation for user {user_id} with brain state: {brain_state}"
+            f"{f' within a {time_window_minutes}-minute session window' if time_window_minutes else ''}.\n\n"
             "1. Fetch the user's cognitive profile using get_cognitive_profile tool.\n"
             "2. Fetch the user's recent history using get_user_history tool.\n"
             "3. Analyze context:\n"
@@ -62,7 +63,7 @@ def run_orchestrated_planning(
         agent=manager_agent,
     )
 
-    planning_task = create_planning_task(user_id, brain_state, user_tasks)
+    planning_task = create_planning_task(user_id, brain_state, user_tasks, time_window_minutes)
 
     crew = Crew(
         agents=[manager_agent, planning_agent],

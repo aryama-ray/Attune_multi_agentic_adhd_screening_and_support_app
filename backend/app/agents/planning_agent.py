@@ -25,19 +25,21 @@ BRAIN_STATE_STRATEGIES = {
         "cognitive load). 15-minute buffers between tasks. No deep work blocks longer "
         "than 20 minutes. Include one physical movement task. Overall tone: gentle, "
         "no pressure. This person's brain is running low today — protect them from "
-        "overcommitment."
+        "overcommitment. If time window is 60 min or less, limit to 2-3 tasks max."
     ),
     "focused": (
         "FOCUSED DAY STRATEGY: 5-6 tasks. Optimal cognitive scheduling — hardest task "
         "in the person's peak attention window. Medium-difficulty task first as warmup. "
         "One deep work block of 45-60 minutes. Include variety to prevent monotony. "
-        "This is a good brain day — make the most of it without burning out."
+        "This is a good brain day — make the most of it without burning out. "
+        "Use the full time window — deep work block should be ~40% of total time."
     ),
     "wired": (
         "WIRED DAY STRATEGY: 6-7 tasks. Front-load the hardest tasks immediately "
         "(channel the energy). Short 15-minute blocks to match rapid attention shifts. "
         "Build in 2 physical movement breaks. End with a cooldown creative task. "
-        "This person has excess energy — aim it before it scatters."
+        "This person has excess energy — aim it before it scatters. "
+        "Many short tasks — aim for 15-min blocks even in longer windows."
     ),
 }
 
@@ -76,18 +78,31 @@ planning_agent = Agent(
 )
 
 
-def create_planning_task(user_id: str, brain_state: str, user_tasks: list[str] | None = None) -> Task:
+def create_planning_task(user_id: str, brain_state: str, user_tasks: list[str] | None = None, time_window_minutes: int | None = None) -> Task:
     strategy = BRAIN_STATE_STRATEGIES.get(brain_state, BRAIN_STATE_STRATEGIES["focused"])
     task_context = ""
     if user_tasks:
         task_context = f"\nUser's tasks to schedule: {json.dumps(user_tasks)}\n"
+
+    time_constraint = ""
+    if time_window_minutes:
+        buffer = int(time_window_minutes * 0.2)  # 20% ADHD slack
+        effective = time_window_minutes - buffer
+        time_constraint = (
+            f"\n\nTIME CONSTRAINT: The user has {time_window_minutes} minutes total for this session. "
+            f"Plan for ~{effective} minutes of actual work + breaks (keeping 20% buffer for "
+            f"ADHD time estimation drift). Do NOT exceed {time_window_minutes} minutes total. "
+            f"If the user's tasks don't all fit, prioritize by importance and drop lower-priority items. "
+            f"Mention the time window in your overallRationale (e.g. 'Your 2-hour session is planned with...')."
+        )
 
     return Task(
         description=(
             f"Generate a personalized daily plan for user {user_id}.\n\n"
             f"Brain state: {brain_state}\n"
             f"Strategy: {strategy}\n"
-            f"{task_context}\n"
+            f"{task_context}"
+            f"{time_constraint}\n"
             f"Step 1: Use get_cognitive_profile tool with user_id={user_id} to fetch "
             "the user's cognitive profile.\n"
             f"Step 2: Use get_user_history tool with user_id={user_id} to fetch recent "
@@ -124,8 +139,8 @@ def create_planning_task(user_id: str, brain_state: str, user_tasks: list[str] |
     )
 
 
-def run_planning(user_id: str, brain_state: str, user_tasks: list[str] | None = None) -> dict:
-    task = create_planning_task(user_id, brain_state, user_tasks)
+def run_planning(user_id: str, brain_state: str, user_tasks: list[str] | None = None, time_window_minutes: int | None = None) -> dict:
+    task = create_planning_task(user_id, brain_state, user_tasks, time_window_minutes)
     crew = Crew(
         agents=[planning_agent],
         tasks=[task],

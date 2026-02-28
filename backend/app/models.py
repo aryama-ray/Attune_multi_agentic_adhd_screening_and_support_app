@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Literal, Optional
 
 
 # ── Auth ──
@@ -34,7 +34,7 @@ class AuthResponse(BaseModel):
 class ASRSAnswer(BaseModel):
     questionIndex: int
     questionText: str
-    score: int
+    score: int = Field(ge=0, le=4)
 
 
 class ScreeningRequest(BaseModel):
@@ -78,8 +78,9 @@ class Task(BaseModel):
 
 
 class PlanRequest(BaseModel):
-    brainState: str
+    brainState: Literal["foggy", "focused", "wired"]
     tasks: Optional[list[str]] = None
+    timeWindowMinutes: Optional[int] = Field(None, ge=15, le=480)  # 15 min to 8 hrs
 
 
 class PlanResponse(BaseModel):
@@ -118,8 +119,8 @@ class HypothesisCard(BaseModel):
     id: str
     patternDetected: str
     prediction: str
-    confidence: str
-    status: str
+    confidence: Literal["low", "medium", "high"]
+    status: Literal["active", "confirmed", "disproved", "evolving"]
     supportingEvidence: list[dict]
     createdAt: str
 
@@ -173,3 +174,23 @@ class InterventionOutput(BaseModel):
     restructuredTasks: list[Task]
     agentReasoning: str
     followupHint: Optional[str] = None
+
+
+
+# ── Pattern Detection Structured Output ──
+class PatternEvidence(BaseModel):
+    day: int
+    detail: str
+
+
+class PatternCard(BaseModel):
+    patternDetected: str
+    prediction: str
+    confidence: Literal["low", "medium", "high"]
+    supportingEvidence: list[PatternEvidence]
+    status: Literal["active", "confirmed", "disproved", "evolving"] = "active"
+
+
+class PatternOutput(BaseModel):
+    """Structured output from the pattern detection agent."""
+    cards: list[PatternCard]

@@ -6,6 +6,9 @@ from app.database import get_supabase_admin
 from app.services.momentum_service import calculate_momentum
 from app.middleware.auth import get_current_user
 
+# Map energy_level values from checkins to brain state values expected by frontend
+_ENERGY_TO_BRAIN = {"low": "foggy", "medium": "focused", "high": "wired"}
+
 router = APIRouter()
 
 
@@ -37,12 +40,15 @@ async def get_dashboard(
         db.table("checkins")
         .select("*")
         .eq("user_id", user_id)
-        .order("checkin_date", desc=False)
+        .order("checkin_date", desc=True)
         .limit(14)
         .execute()
     )
     if not checkins.data:
         raise HTTPException(status_code=404, detail="No dashboard data found")
+
+    # Reverse to chronological order (oldest first) for chart rendering
+    checkins.data.reverse()
 
     # Build trend data
     trend_data = []
@@ -53,7 +59,7 @@ async def get_dashboard(
             dayNumber=i + 1,
             moodScore=c["mood_score"],
             completionRate=round((c["tasks_completed"] / total) * 100),
-            brainState=c.get("energy_level", "medium"),
+            brainState=_ENERGY_TO_BRAIN.get(c.get("energy_level", "medium"), "focused"),
             tasksCompleted=c["tasks_completed"],
             tasksTotal=c["tasks_total"],
         ))
@@ -107,13 +113,32 @@ async def get_dashboard(
         .eq("user_id", user_id)
         .execute()
     )
-    for idx, intv in enumerate(interventions.data):
-        # Map intervention to nearest checkin day
-        annotations.append(AgentAnnotation(
-            dayNumber=4 if idx == 0 else 11,  # Seeded positions
-            text=f"Intervention: {intv['agent_reasoning'][:80]}...",
-            type="intervention",
-        ))
+    # Build checkin_date -> dayNumber lookup for dynamic annotation placement
+    checkin_date_to_day = {}
+    for i, c in enumerate(checkins.data):
+        checkin_date_to_day[c["checkin_date"]] = i + 1
+
+    for intv in interventions.data:
+        # Match intervention date to checkin day number
+        intv_date = str(intv["created_at"])[:10]  # Extract YYYY-MM-DD
+        day_num = checkin_date_to_day.get(intv_date)
+
+        if day_num is None:
+            # Fallback: match via plan_id -> plan_date
+            try:
+                plan_row = db.table("daily_plans").select("plan_date").eq("id", intv["plan_id"]).limit(1).execute()
+                if plan_row.data:
+                    day_num = checkin_date_to_day.get(str(plan_row.data[0]["plan_date"]))
+            except Exception:
+                pass
+
+        if day_num is not None:
+            reasoning = intv.get("agent_reasoning", "") or ""
+            annotations.append(AgentAnnotation(
+                dayNumber=day_num,
+                text=f"Intervention: {reasoning[:80]}..." if len(reasoning) > 80 else f"Intervention: {reasoning}",
+                type="intervention",
+            ))
 
     # Build feedback history from interventions with ratings
     feedback_history = [

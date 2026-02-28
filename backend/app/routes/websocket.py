@@ -2,6 +2,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from app.database import get_supabase_anon
 from crewai.events.event_bus import crewai_event_bus
 from crewai.events.event_types import (
     AgentExecutionStartedEvent,
@@ -102,7 +103,24 @@ def _register_global_handlers():
 
 @router.websocket("/ws/agent-progress/{user_id}")
 async def agent_progress(websocket: WebSocket, user_id: str):
-    """WebSocket endpoint for real-time agent progress updates."""
+    """WebSocket endpoint for real-time agent progress updates.
+    Requires ?token=<JWT> query parameter for authentication."""
+    # Validate JWT from query parameter before accepting
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4001, reason="Missing token query parameter")
+        return
+
+    try:
+        supabase = get_supabase_anon()
+        response = supabase.auth.get_user(token)
+        if response.user is None or str(response.user.id) != user_id:
+            await websocket.close(code=4003, reason="Invalid token or user mismatch")
+            return
+    except Exception:
+        await websocket.close(code=4003, reason="Authentication failed")
+        return
+
     await websocket.accept()
 
     # Ensure global handlers are registered

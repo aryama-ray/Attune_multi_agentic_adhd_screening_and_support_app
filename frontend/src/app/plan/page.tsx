@@ -76,13 +76,24 @@ function LevelPill({
 
 // ─── Phase 1: Brain State ─────────────────────────────────────────────────────
 
-function BrainStateForm({ onNext }: { onNext: (bs: { focusLevel: BrainStateLevel; energyLevel: BrainStateLevel; moodLevel: BrainStateLevel; context?: string }) => void }) {
+function BrainStateForm({ onNext }: { onNext: (bs: { focusLevel: BrainStateLevel; energyLevel: BrainStateLevel; moodLevel: BrainStateLevel; context?: string; timeWindowMinutes: number }) => void }) {
   const [focus,  setFocus]  = useState<BrainStateLevel | null>(null);
   const [energy, setEnergy] = useState<BrainStateLevel | null>(null);
   const [mood,   setMood]   = useState<BrainStateLevel | null>(null);
   const [context, setContext] = useState("");
+  const [timeWindow, setTimeWindow] = useState<number | null>(null);
 
-  const isValid = focus !== null && energy !== null && mood !== null;
+  // Derive backend brain state to pick matching time presets
+  const derived: "foggy" | "focused" | "wired" =
+    focus === "low" ? "foggy" : energy === "high" ? "wired" : "focused";
+
+  const TIME_PRESETS: Record<"foggy" | "focused" | "wired", { label: string; minutes: number }[]> = {
+    foggy:   [{ label: "30 min", minutes: 30 }, { label: "1 hr", minutes: 60 },  { label: "2 hr", minutes: 120 }],
+    focused: [{ label: "1 hr",   minutes: 60 }, { label: "2 hr", minutes: 120 }, { label: "4 hr", minutes: 240 }],
+    wired:   [{ label: "45 min", minutes: 45 }, { label: "1.5 hr", minutes: 90 }, { label: "3 hr", minutes: 180 }],
+  };
+
+  const isValid = focus !== null && energy !== null && mood !== null && timeWindow !== null;
 
   return (
     <div className="flex flex-col items-center gap-8 py-8">
@@ -105,11 +116,40 @@ function BrainStateForm({ onNext }: { onNext: (bs: { focusLevel: BrainStateLevel
             </div>
             <div className="flex gap-2">
               {LEVEL_OPTIONS.map((opt) => (
-                <LevelPill key={opt.value} option={opt} selected={val === opt.value} onClick={() => setter(opt.value)} />
+                <LevelPill key={opt.value} option={opt} selected={val === opt.value} onClick={() => { setter(opt.value); setTimeWindow(null); }} />
               ))}
             </div>
           </div>
         ))}
+
+        {/* Time window presets — appear after all 3 levels are selected */}
+        {focus && energy && mood && (
+          <div className="flex flex-col gap-3 fade-in">
+            <div>
+              <p className="text-sm font-semibold text-foreground">How long do you want to work?</p>
+              <p className="text-xs text-muted-foreground">
+                We&apos;ll fit your tasks (with breaks) into this window.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {TIME_PRESETS[derived].map((preset) => (
+                <button
+                  key={preset.minutes}
+                  type="button"
+                  onClick={() => setTimeWindow(preset.minutes)}
+                  className={[
+                    "flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all",
+                    timeWindow === preset.minutes
+                      ? "border-primary bg-primary text-white shadow-sm"
+                      : "border-border bg-surface text-foreground hover:border-primary/50 hover:bg-primary/5",
+                  ].join(" ")}
+                >
+                  <span>⏱</span>{preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <p className="text-sm font-semibold text-foreground">
@@ -125,7 +165,7 @@ function BrainStateForm({ onNext }: { onNext: (bs: { focusLevel: BrainStateLevel
         </div>
 
         <button
-          onClick={() => isValid && onNext({ focusLevel: focus!, energyLevel: energy!, moodLevel: mood!, context: context.trim() || undefined })}
+          onClick={() => isValid && onNext({ focusLevel: focus!, energyLevel: energy!, moodLevel: mood!, context: context.trim() || undefined, timeWindowMinutes: timeWindow! })}
           disabled={!isValid}
           className={["w-full rounded-xl py-3 text-base font-semibold text-white shadow-sm transition-all", isValid ? "bg-primary hover:bg-primary-600" : "cursor-not-allowed bg-primary/30"].join(" ")}
         >
@@ -220,7 +260,7 @@ function TaskInputForm({
   onBack,
   onGenerate,
 }: {
-  brainState: { focusLevel: BrainStateLevel; energyLevel: BrainStateLevel; moodLevel: BrainStateLevel };
+  brainState: { focusLevel: BrainStateLevel; energyLevel: BrainStateLevel; moodLevel: BrainStateLevel; timeWindowMinutes: number };
   onBack: () => void;
   onGenerate: (tasks: UserTask[]) => void;
 }) {
@@ -251,10 +291,13 @@ function TaskInputForm({
   }
 
   // Brain state summary pills
+  const twMin = brainState.timeWindowMinutes;
+  const twLabel = twMin >= 60 ? (twMin % 60 === 0 ? `${twMin / 60} hr` : `${(twMin / 60).toFixed(1)} hr`) : `${twMin} min`;
   const bsSummary = [
     { label: `Focus: ${brainState.focusLevel}`,  emoji: brainState.focusLevel === "high" ? "🟢" : brainState.focusLevel === "medium" ? "🟡" : "🔴" },
     { label: `Energy: ${brainState.energyLevel}`, emoji: brainState.energyLevel === "high" ? "🟢" : brainState.energyLevel === "medium" ? "🟡" : "🔴" },
     { label: `Mood: ${brainState.moodLevel}`,     emoji: brainState.moodLevel === "high" ? "🟢" : brainState.moodLevel === "medium" ? "🟡" : "🔴" },
+    { label: `Time: ${twLabel}`, emoji: "⏱" },
   ];
 
   return (

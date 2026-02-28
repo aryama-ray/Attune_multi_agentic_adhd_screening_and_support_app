@@ -54,6 +54,8 @@ def save_daily_plan(user_id: str, plan_json: str) -> str:
     Returns: the saved plan id."""
     db = get_supabase_admin()
     plan = json.loads(plan_json)
+    # Deactivate all prior plans for this user
+    db.table("daily_plans").update({"is_active": False}).eq("user_id", user_id).eq("is_active", True).execute()
     result = db.table("daily_plans").insert({
         "user_id": user_id,
         "brain_state": plan["brainState"],
@@ -106,6 +108,7 @@ def save_intervention(user_id: str, intervention_json: str) -> str:
         "original_tasks": data["originalTasks"],
         "restructured_tasks": data["restructuredTasks"],
         "agent_reasoning": data["agentReasoning"],
+        "followup_message": data.get("followupHint"),
     }).execute()
     return json.dumps({"interventionId": result.data[0]["id"]})
 
@@ -114,7 +117,7 @@ def save_intervention(user_id: str, intervention_json: str) -> str:
 def save_hypothesis_card(user_id: str, card_json: str) -> str:
     """Save a hypothesis card (behavioral pattern) to the database.
     Input: user_id and card_json containing patternDetected, prediction,
-    confidence (low|medium|high), supportingEvidence (array), status (testing|confirmed|rejected).
+    confidence (low|medium|high), supportingEvidence (array), status (active|confirmed|disproved|evolving).
     Returns: the saved card id."""
     db = get_supabase_admin()
     card = json.loads(card_json)
@@ -124,7 +127,7 @@ def save_hypothesis_card(user_id: str, card_json: str) -> str:
         "prediction": card["prediction"],
         "confidence": card.get("confidence", "medium"),
         "supporting_evidence": card.get("supportingEvidence", []),
-        "status": card.get("status", "testing"),
+        "status": card.get("status", "active"),
     }).execute()
     return json.dumps({"cardId": result.data[0]["id"]})
 
